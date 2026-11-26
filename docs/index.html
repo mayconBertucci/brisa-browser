@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Conheça o Brisa, um navegador para Windows com bloqueio de anúncios e rastreadores e uma interface enxuta.">
+  <meta name="theme-color" content="#eaf7f2">
+  <meta name="brisa-version" content="1.0.5">
+  <title>Brisa — Navegue com menos interrupções</title>
+  <link rel="icon" href="brisa.png" type="image/png" sizes="128x128">
+  <link rel="apple-touch-icon" href="brisa.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="download.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#conteudo">Ir para o conteúdo</a>
+  <header class="header">
+    <div class="wrap nav">
+      <a class="brand" href="#conteudo"><img src="brisa.png" alt="" width="37" height="37"> Brisa</a>
+      <nav aria-label="Navegação principal">
+        <a href="#protecao">Proteção</a>
+        <a href="#recursos">Recursos</a>
+        <a href="#instalar">Instalação</a>
+      </nav>
+      <a class="nav-download" href="#instalar">Baixar</a>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <h1>Navegue com menos interrupções</h1>
+          <p>O Brisa bloqueia anúncios de rede, rastreadores e pop-ups automáticos. Organize seus favoritos, fixe suas abas e veja o que foi bloqueado enquanto navega.</p>
+          <a class="download" href="../target/distribution/Brisa-1.0.5-Windows-x64.exe" data-release="Brisa-1.0.5-Windows-x64.exe" download>
+            <span class="download-icon" aria-hidden="true">↓</span> Baixar para Windows
+          </a>
+          <p class="requirements">Versão 1.0.5 para Windows 10 e 11 x64.</p>
+        </div>
+
+        <figure class="preview">
+          <div class="browser" aria-hidden="true">
+            <div class="browser-tabs">
+              <img src="brisa.png" alt="" width="22" height="22">
+              <span class="sample-tab">▤ &nbsp; Marcadores</span><span class="add-tab">+</span>
+              <span class="window-buttons">− &nbsp; □ &nbsp; ×</span>
+            </div>
+            <div class="browser-nav"><span>‹ &nbsp; › &nbsp; ↻</span><span class="sample-url">◈ &nbsp; brisa://marcadores</span><span>⋮</span></div>
+            <div class="browser-bookmarks"><span>▱ &nbsp; Marcadores</span><span>Projetos</span><span>Leitura</span></div>
+            <div class="browser-body">
+              <aside><strong>Brisa</strong><span class="active-section">Marcadores</span><span>Histórico</span><span>Configurações</span><span>Bloqueios</span></aside>
+              <div class="sample-content">
+                <strong>Marcadores</strong>
+                <div class="sample-search">Pesquisar marcadores</div>
+                <div class="sample-row"><span>▱</span> Projetos</div>
+                <div class="sample-row"><span>◈</span> Leitura</div>
+                <div class="sample-row"><span>✉</span> Gmail</div>
+              </div>
+            </div>
+          </div>
+          <figcaption>Prévia do gerenciador de marcadores no tema escuro</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="protection" id="protecao">
+      <div class="wrap protection-grid">
+        <div>
+          <h2>Veja o que ficou do lado de fora</h2>
+          <p>Abra o escudo do Brisa para consultar os endereços bloqueados e o motivo. Você pode pausar o filtro para um site durante a sessão.</p>
+        </div>
+        <dl class="protection-list">
+          <div><dt>Anúncios e rastreadores</dt><dd>Regras EasyList e EasyPrivacy bloqueiam requisições que correspondem às listas.</dd></div>
+          <div><dt>Pop-ups automáticos</dt><dd>O Brisa barra janelas abertas sem sua ação e destinos reconhecidos como anúncios.</dd></div>
+          <div><dt>Conexões e sessões</dt><dd>O Brisa exige HTTPS por padrão. Os cookies necessários ao login continuam disponíveis quando a requisição é permitida.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="features wrap" id="recursos">
+      <div class="section-heading">
+        <h2>Do trabalho à leitura</h2>
+        <p>Os atalhos de sempre, com ferramentas para organizar suas abas e deixar o Brisa do seu jeito.</p>
+      </div>
+      <div class="feature-list">
+        <article><h3>Abas e favoritos</h3><p>Fixe suas abas mais usadas. Arraste marcadores para ordenar ou guardar em pastas. Use a estante para liberar abas e reabrir a página depois.</p></article>
+        <article><h3>Barra de endereços</h3><p>Pesquise com o Google por padrão e encontre sugestões do seu histórico e dos seus favoritos. Use <kbd>Ctrl</kbd> + <kbd>A</kbd> para selecionar o endereço.</p></article>
+        <article><h3>Para ler ou desenvolver</h3><p>Ajuste o zoom com <kbd>Ctrl</kbd> e a roda do mouse. Escolha tema claro ou escuro e abra o DevTools encaixado ou em uma janela separada.</p></article>
+      </div>
+    </section>
+
+    <section class="performance" aria-labelledby="ram-heading">
+      <div class="wrap performance-grid">
+        <div>
+          <h2 id="ram-heading">76 MiB de RAM no teste local</h2>
+          <p>A interface em Rust usa o motor WebView2 do Windows. No teste com o Brisa 1.0.0, o perfil novo ocupou 5,32 MiB no disco.</p>
+        </div>
+        <figure class="memory" aria-label="RAM privada em MiB">
+          <div><strong>Brisa</strong><span class="measure brisa" style="--share: 36.5%"></span><b>76,31</b></div>
+          <div><strong>Brave</strong><span class="measure" style="--share: 61%"></span><b>127,43</b></div>
+          <div><strong>Chrome</strong><span class="measure" style="--share: 100%"></span><b>209,09</b></div>
+          <figcaption>RAM privada em MiB. Mediana de três execuções com perfil novo e uma página local de 120 artigos, incluindo os processos do motor. O consumo pode variar com as abas abertas.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="install" id="instalar">
+      <div class="wrap install-grid">
+        <div>
+          <h2>Instale o Brisa</h2>
+          <p>Baixe o instalador, abra o arquivo e siga as etapas em português. O Brisa fica disponível no menu Iniciar da sua conta do Windows.</p>
+          <a class="download" href="../target/distribution/Brisa-1.0.5-Windows-x64.exe" data-release="Brisa-1.0.5-Windows-x64.exe" download>
+            <span class="download-icon" aria-hidden="true">↓</span> Baixar Brisa 1.0.5
+          </a>
+          <a class="checksum" href="../target/distribution/SHA256SUMS.txt" data-release="SHA256SUMS.txt">Verificação SHA-256</a>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>O que preciso para instalar?</summary>
+            <p>Windows 10 ou 11 com processador x64. Se o WebView2 Evergreen estiver ausente, o instalador usa a internet para instalá-lo pelos servidores da Microsoft.</p>
+          </details>
+          <details>
+            <summary>Preciso ser administrador?</summary>
+            <p>Escolha <strong>Somente para mim</strong> para instalar na sua conta. Selecione <strong>Para todos os usuários</strong> para instalar em Arquivos de Programas com a autorização do Windows.</p>
+          </details>
+          <details>
+            <summary>Posso manter meu perfil do Brisa?</summary>
+            <p>Feche versões anteriores antes de abrir a nova. A instalação usa o perfil local que o Brisa já criou no Windows.</p>
+          </details>
+          <details>
+            <summary>Como ativo a tradução local?</summary>
+            <p>Instale o Node.js no diretório padrão do Windows. A primeira tradução baixa o modelo de idioma. O texto da página é processado no computador.</p>
+          </details>
+          <details>
+            <summary>O instalador tem assinatura digital?</summary>
+            <p>O instalador 1.0.5 está sem assinatura Authenticode. O SmartScreen pode sinalizar reputação desconhecida. A soma SHA-256 publicada permite conferir a integridade do arquivo.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap"><a class="brand" href="#conteudo"><img src="brisa.ico" alt="" width="27" height="27"> Brisa</a><p>Navegador para Windows com interface em Rust e motor Microsoft Edge WebView2.</p></div>
+  </footer>
+</body>
+</html>

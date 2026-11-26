@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Nova aba</title>
+  <style>
+    :root {
+      color-scheme: light;
+      background: #eef5f1;
+      color: #19342b;
+      font: 16px "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: clamp(36px, 12vh, 112px) max(28px, calc((100vw - 900px) / 2)); }
+    main { max-width: 52rem; }
+    h1 { font: 640 clamp(4rem, 13vw, 9rem)/.94 "Segoe UI Variable Display", "Segoe UI", sans-serif; letter-spacing: -.09em; margin: 0; }
+    .description { margin: 26px 0 46px; max-width: 32rem; font-size: 1.16rem; line-height: 1.55; }
+    dl { border-top: 1px solid #acc7bb; display: grid; grid-template-columns: minmax(8rem,1fr) minmax(9rem,2fr); margin: 0; padding: 16px 0; row-gap: 15px; }
+    dt { margin: 0; color: #164d3b; font-weight: 650; }
+    dd { margin: 0; }
+    kbd { font: inherit; background: #daeadf; padding: .17rem .36rem; border-radius: .23rem; white-space: nowrap; }
+    @media (max-width: 460px) { dl { grid-template-columns: 1fr; row-gap: 9px; } dd { margin-bottom: 6px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Brisa</h1>
+    <p class="description">Digite um endereço ou faça uma pesquisa pela barra de navegação.</p>
+    <dl>
+      <dt>Nova aba</dt><dd><kbd>Ctrl</kbd> + <kbd>T</kbd></dd>
+      <dt>Salvar página</dt><dd><kbd>Ctrl</kbd> + <kbd>D</kbd></dd>
+      <dt>Inspetor</dt><dd><kbd>F12</kbd></dd>
+      <dt>Estante</dt><dd>No menu, guarde uma aba para reabrir o endereço depois.</dd>
+    </dl>
+  </main>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brisa</title>
+  <link rel="stylesheet" href="/center.css">
+  <script defer src="/center.js"></script>
+</head>
+<body>
+  <aside>
+    <div class="brand">Brisa</div>
+    <nav aria-label="Páginas do navegador">
+      <button data-page="marcadores">Marcadores</button>
+      <button data-page="historico">Histórico</button>
+      <button data-page="configuracoes">Configurações</button>
+      <button data-page="protecao">Bloqueios</button>
+    </nav>
+  </aside>
+  <main aria-labelledby="page-title">
+    <header><h1 id="page-title"></h1><div id="actions"></div></header>
+    <p id="feedback" role="status"></p>
+    <section id="views"></section>
+  </main>
+  <dialog id="editor" aria-labelledby="dialog-title">
+    <form id="editor-form">
+      <h2 id="dialog-title"></h2>
+      <p id="dialog-copy"></p>
+      <label id="title-label">Nome<input id="form-title" maxlength="120"></label>
+      <label id="folder-label">Pasta<select id="form-folder"></select></label>
+      <div class="dialog-actions">
+        <button type="button" id="cancel">Cancelar</button>
+        <button class="primary" id="confirm" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

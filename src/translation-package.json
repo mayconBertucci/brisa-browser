@@ -1,0 +1,7 @@
+{
+  "name": "brisa-local-translation",
+  "private": true,
+  "dependencies": {
+    "@browsermt/bergamot-translator": "0.4.9"
+  }
+}

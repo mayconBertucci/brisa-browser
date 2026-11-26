@@ -1,0 +1,116 @@
+name: Instalador Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'vendor/**'
+      - 'installer/**'
+      - 'docs/**'
+      - 'Cargo.*'
+      - 'build.rs'
+      - 'build.ps1'
+      - 'package.ps1'
+      - '.github/workflows/windows-installer.yml'
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: Solicitar assinatura do instalador pelo SignPath
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  installer:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Identificar a versão
+        id: release
+        env:
+          REQUEST_SIGNING: ${{ inputs.sign }}
+        run: |
+          $version = [regex]::Match((Get-Content Cargo.toml -Raw), '(?m)^version = "([0-9]+\.[0-9]+\.[0-9]+)"\r?$').Groups[1].Value
+          if (!$version) { throw 'A versão do Cargo.toml está ausente ou é inválida.' }
+          if ($env:REQUEST_SIGNING -eq 'true' -and $env:GITHUB_REF -cne "refs/tags/v$version") {
+              throw "Selecione a tag v$version para solicitar a assinatura."
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "filename=Brisa-$version-Windows-x64.exe" >> $env:GITHUB_OUTPUT
+
+      - name: Compilar e empacotar
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $visualStudio = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or !$visualStudio) { throw 'Visual Studio Build Tools indisponível.' }
+          & (Join-Path $visualStudio 'Common7/Tools/Launch-VsDevShell.ps1') -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          $env:RUSTUP_TOOLCHAIN = '1.100.0-x86_64-pc-windows-msvc'
+          rustup toolchain install $env:RUSTUP_TOOLCHAIN --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          ./package.ps1 -Compiler $compiler
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:Path = "$(Resolve-Path 'target/release');$env:Path"
+          cargo test --release --locked
+          exit $LASTEXITCODE
+
+      - name: Guardar instalador sem assinatura
+        id: unsigned
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: brisa-windows-sem-assinatura
+          path: target/distribution/${{ steps.release.outputs.filename }}
+          if-no-files-found: error
+
+      - name: Solicitar assinatura
+        if: inputs.sign
+        uses: SignPath/github-action-submit-signing-request@a2c5b60d9c75f073142b653c354b632eedce097b # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: brisa-installer
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: target/signed
+          parameters: |
+            version: ${{ toJSON(steps.release.outputs.version) }}
+
+      - name: Validar assinatura e gerar SHA-256
+        if: inputs.sign
+        env:
+          INSTALLER_NAME: ${{ steps.release.outputs.filename }}
+        run: |
+          $installer = Join-Path 'target/signed' $env:INSTALLER_NAME
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          if ($signature.Status -ne 'Valid' -or !$signature.TimeStamperCertificate) {
+              throw "Assinatura inválida ou sem carimbo de tempo: $($signature.Status)."
+          }
+          $publisher = $signature.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if ($publisher -ne 'SignPath Foundation') { throw "Editor inesperado: $publisher." }
+          $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $env:INSTALLER_NAME" | Set-Content -LiteralPath 'target/signed/SHA256SUMS.txt' -Encoding ASCII
+
+      - name: Guardar instalador assinado
+        if: inputs.sign
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: brisa-windows-assinado
+          path: |
+            target/signed/${{ steps.release.outputs.filename }}
+            target/signed/SHA256SUMS.txt
+          if-no-files-found: error
