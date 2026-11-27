@@ -23,9 +23,15 @@ a:focus-visible, summary:focus-visible { outline: 3px solid #2d7b68; outline-off
 .header { background: var(--light); border-bottom: 1px solid var(--line); }
 .nav { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
 .brand { display: inline-flex; align-items: center; gap: .55rem; font-size: 1.55rem; font-weight: 750; letter-spacing: -.045em; text-decoration: none; }
-.nav nav { display: flex; gap: clamp(1rem, 3vw, 2.75rem); color: var(--muted); }
-.nav nav a { text-decoration: none; }
-.nav nav a:hover, .checksum:hover { color: var(--jade); text-decoration: underline; }
+.site-nav { display: flex; gap: clamp(1rem, 3vw, 2.75rem); color: var(--muted); }
+.site-nav a { text-decoration: none; }
+.site-nav a:hover, .checksum:hover { color: var(--jade); text-decoration: underline; }
+.nav-actions, .language-nav { display: flex; align-items: center; }
+.nav-actions { gap: clamp(.55rem, 1.5vw, 1.25rem); }
+.language-nav { gap: .14rem; padding: .16rem; border: 1px solid var(--line); border-radius: .55rem; }
+.language-nav a { padding: .28rem .48rem; border-radius: .35rem; color: var(--muted); font-size: .78rem; font-weight: 650; text-decoration: none; }
+.language-nav a:hover, .language-nav a[aria-current] { background: #d7eee4; color: var(--jade); }
+.language-nav a:focus-visible { outline-offset: 1px; }
 .nav-download { padding: .48rem 1.2rem; border: 1px solid #7da399; border-radius: 100px; text-decoration: none; font-weight: 650; }
 .nav-download:hover { background: #d7eee4; }
 
@@ -117,7 +123,9 @@ kbd { padding: .02rem .2rem; border: 1px solid var(--line); border-radius: .2rem
 @media (max-width: 600px) {
   .wrap { width: calc(100% - 2rem); }
   .nav { min-height: 62px; gap: .8rem; }
-  .nav nav { display: none; }
+  .site-nav { display: none; }
+  .nav { flex-wrap: wrap; gap: .5rem; padding-block: .45rem; }
+  .nav-download { padding-inline: .7rem; }
   .browser-body { min-height: 230px; grid-template-columns: 6.5rem minmax(0, 1fr); }
   .browser-body aside { font-size: .65rem; }
   .browser-bookmarks > span:last-child { display: none; }
