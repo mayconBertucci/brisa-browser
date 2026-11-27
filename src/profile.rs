@@ -177,6 +177,8 @@ impl BookmarkItem<'_> {
 #[serde(default)]
 pub struct Data {
     pub preferences: Preferences,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download_folder: Option<String>,
     pub folders: Vec<Folder>,
     pub bookmarks: Vec<Link>,
     pub history: Vec<Link>,

@@ -133,10 +133,29 @@ pub fn confirm_download(
     private: bool,
 ) -> io::Result<bool> {
     let items = [Item::action(2, "Cancelar"), Item::action(1, "Baixar")];
-    let content = Content::Download {
-        filename,
-        host,
-        private,
+    let content = Content::Confirmation {
+        title: "Baixar arquivo",
+        headline: filename,
+        detail: &format!("De {host}"),
+        note: private.then_some("O arquivo ficará salvo no computador."),
+        icon: Icon::Download,
+    };
+    Ok(run(owner, anchor, palette, &items, content)?.id == 1)
+}
+
+pub fn confirm_update(
+    owner: HWND,
+    anchor: Anchor,
+    palette: Palette,
+    version: &str,
+) -> io::Result<bool> {
+    let items = [Item::action(2, "Cancelar"), Item::action(1, "Atualizar")];
+    let content = Content::Confirmation {
+        title: "Atualizar o Brisa?",
+        headline: &format!("Brisa {version} para Windows"),
+        detail: "O Brisa fecha para instalar a atualização.",
+        note: Some("O Windows pode pedir confirmação para continuar."),
+        icon: Icon::Reload,
     };
     Ok(run(owner, anchor, palette, &items, content)?.id == 1)
 }
@@ -149,10 +168,12 @@ enum Content<'a> {
         title: &'a str,
         fields: &'a [(&'a str, &'a str, usize)],
     },
-    Download {
-        filename: &'a str,
-        host: &'a str,
-        private: bool,
+    Confirmation {
+        title: &'a str,
+        headline: &'a str,
+        detail: &'a str,
+        note: Option<&'a str>,
+        icon: Icon,
     },
 }
 
@@ -246,7 +267,7 @@ struct State<'a> {
     answer: Cell<Option<u16>>,
     hovered: Cell<HWND>,
     dpi: i32,
-    download: bool,
+    confirmation: Option<Icon>,
 }
 
 #[derive(Default)]
@@ -323,12 +344,12 @@ fn run(
     let dpi = unsafe { GetDpiForWindow(owner) }.clamp(96, 768) as i32;
     let px = |value| scaled(value, dpi);
     let paint = PaintResources::new(palette, dpi)?;
-    let download = matches!(content, Content::Download { .. });
-    let (title, fields) = match content {
-        Content::Editor { title, fields } => (title, fields),
-        Content::Download { .. } => ("Baixar arquivo", &[][..]),
-        Content::Menu { .. } => ("", &[][..]),
+    let (title, fields, confirmation) = match content {
+        Content::Editor { title, fields } => (title, fields, None),
+        Content::Confirmation { title, icon, .. } => (title, &[][..], Some(icon)),
+        Content::Menu { .. } => ("", &[][..], None),
     };
+    let confirm = confirmation.is_some();
     let state = State {
         items,
         palette,
@@ -336,7 +357,7 @@ fn run(
         answer: Cell::new(None),
         hovered: Cell::new(null_mut()),
         dpi,
-        download,
+        confirmation,
     };
     let class = window_class()?;
     let title_utf16 = chrome::wide(if title.is_empty() {
@@ -344,7 +365,7 @@ fn run(
     } else {
         title
     });
-    let width = px(if download || !fields.is_empty() {
+    let width = px(if confirm || !fields.is_empty() {
         382
     } else {
         322
@@ -355,7 +376,7 @@ fn run(
         .map(|item| if item.gap { 40 } else { 33 })
         .sum();
     let height = px(match content {
-        Content::Download { private, .. } => 150 + i32::from(private) * 24,
+        Content::Confirmation { note, .. } => 150 + i32::from(note.is_some()) * 24,
         _ => 14 + title_height + 62 * fields.len() as i32 + rows_height,
     });
     let rect = popup_rect(owner, anchor, width, height);
@@ -387,10 +408,11 @@ fn run(
         right: width - px(left),
         bottom: px(top + height),
     };
-    if let Content::Download {
-        filename,
-        host,
-        private,
+    if let Content::Confirmation {
+        headline,
+        detail,
+        note,
+        ..
     } = content
     {
         child(
@@ -405,7 +427,7 @@ fn run(
         child(
             hwnd,
             "STATIC",
-            filename,
+            headline,
             SS_CENTERIMAGE | SS_ENDELLIPSIS | SS_NOPREFIX,
             0,
             box_at(16, 54, 23),
@@ -414,24 +436,24 @@ fn run(
         child(
             hwnd,
             "STATIC",
-            &format!("De {host}"),
+            detail,
             SS_CENTERIMAGE | SS_ENDELLIPSIS | SS_NOPREFIX,
             DOWNLOAD_DETAIL,
             box_at(16, 77, 22),
             paint.font,
         )?;
-        if private {
+        if let Some(note) = note {
             child(
                 hwnd,
                 "STATIC",
-                "O arquivo ficará salvo no computador.",
-                SS_CENTERIMAGE,
+                note,
+                SS_CENTERIMAGE | SS_ENDELLIPSIS | SS_NOPREFIX,
                 DOWNLOAD_DETAIL,
                 box_at(16, 101, 22),
                 paint.font,
             )?;
         }
-        y = 105 + i32::from(private) * 24;
+        y = 105 + i32::from(note.is_some()) * 24;
     } else if !title.is_empty() {
         let field_rect = box_at(16, y, 29);
         child(
@@ -486,7 +508,7 @@ fn run(
                 paint.font,
             )?;
         } else {
-            let bounds = if download {
+            let bounds = if confirm {
                 let left = width - px(220 - 104 * index as i32);
                 RECT {
                     left,
@@ -508,7 +530,7 @@ fn run(
             )?;
             buttons.push((item.id, control));
         }
-        if !download {
+        if !confirm {
             y += 33;
         }
     }
@@ -523,7 +545,7 @@ fn run(
         if let Some(&first) = edit_controls.first() {
             SetFocus(first);
             SendMessageW(first, EM_SETSEL, 0, -1);
-        } else if download && let Some(&(_, cancel)) = buttons.first() {
+        } else if let Some(&(_, cancel)) = buttons.first() {
             SetFocus(cancel);
         } else {
             SetFocus(hwnd);
@@ -546,6 +568,17 @@ fn run(
                 break;
             }
             _ => {}
+        }
+        if matches!(message.message, WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN | WM_XBUTTONDOWN
+            | WM_NCLBUTTONDOWN | WM_NCRBUTTONDOWN | WM_NCMBUTTONDOWN | WM_NCXBUTTONDOWN)
+            && message.hwnd != hwnd
+            // SAFETY: IsChild only compares the handles from this popup and the message queue.
+            && unsafe { IsChild(hwnd, message.hwnd) } == 0
+        {
+            // Preserve the click for the underlying window after the popup has closed.
+            drop(_window);
+            unsafe { DispatchMessageW(&message) };
+            return Ok(Choice::default());
         }
         if matches!(content, Content::Menu { context: true })
             && let Some((id, point)) = context_request(hwnd, &message, &buttons)
@@ -789,7 +822,7 @@ unsafe extern "system" fn window_proc(
                 let dc = BeginPaint(hwnd, &mut paint);
                 if !dc.is_null() {
                     FillRect(dc, &paint.rcPaint, state.paint.background);
-                    if state.download {
+                    if let Some(icon) = state.confirmation {
                         let px = |value| scaled(value, state.dpi);
                         Canvas::with_dc(dc, |canvas| {
                             canvas.rounded(
@@ -803,7 +836,7 @@ unsafe extern "system" fn window_proc(
                                 state.palette.address,
                             );
                             canvas.icon(
-                                Icon::Download,
+                                icon,
                                 px(24) as f32,
                                 px(20) as f32,
                                 px(20) as f32,
@@ -840,7 +873,7 @@ fn draw_row(state: &State<'_>, draw: &DRAWITEMSTRUCT, item: &Item) {
         state.hovered.get() == draw.hwndItem || draw.itemState & (ODS_FOCUS | ODS_SELECTED) != 0;
     // SAFETY: The owner-draw DC and borrowed resources stay live through this paint.
     unsafe { FillRect(dc, &rect, state.paint.background) };
-    if state.download {
+    if state.confirmation.is_some() {
         Canvas::with_dc(dc, |canvas| {
             let shape = RECT {
                 left: rect.left + px(1),

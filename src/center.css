@@ -72,6 +72,7 @@ input:not([type=checkbox]),select { border:1px solid var(--border);border-radius
 .breadcrumb button { background:transparent;border:0;padding:.22rem .35rem;color:var(--mint) }
 .setting strong { display:block }
 .setting small { display:block;color:var(--muted);margin-top:.22rem }
+.download-folder { overflow-wrap:anywhere }
 input[type=checkbox] { accent-color:var(--mint);width:1.15rem;height:1.15rem;flex:none;cursor:pointer }
 .history-day { display:flex;align-items:center;gap:.75rem }
 .history-day h2 { margin:0 }

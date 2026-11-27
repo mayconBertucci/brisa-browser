@@ -452,6 +452,19 @@ function showSettings() {
     return { element: row, text: [caption, hint, ...languages.map(([, title]) => title)].join(" ") };
   });
   categories.push({ heading: create("h2", "Idiomas"), panel: languagePanel, items: languageItems });
+  const downloads = create("div", "", "panel");
+  const downloadFolder = create("div", "", "row setting");
+  const folderDescription = create("span");
+  folderDescription.append(
+    create("strong", "Pasta de downloads"),
+    create("small", model.download_folder || "Pasta padrão do Windows", "download-folder"),
+  );
+  downloadFolder.append(folderDescription, button("Alterar pasta", () => send("chooseDownloadFolder")));
+  downloads.append(downloadFolder);
+  categories.push({
+    heading: create("h2", "Downloads"), panel: downloads,
+    items: [{ element: downloadFolder, text: "Pasta de downloads Local de salvamento Alterar pasta" }],
+  });
   const clearCache = button("Esvaziar cache", () => send("clearCache"));
   const clear = button("Limpar cookies e dados de sites", () => send("clearSites"), "danger");
   const dataTools = create("div", "", "tools");
@@ -545,6 +558,7 @@ bridge.addEventListener("message", event => {
         if (field.type === "checkbox") field.checked = model.preferences[field.name];
         else field.value = model.preferences[field.name];
       }
+      views.querySelector(".download-folder").textContent = model.download_folder || "Pasta padrão do Windows";
     }
   }
   if (changed) window.scrollTo(0, 0);

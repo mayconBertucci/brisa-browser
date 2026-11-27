@@ -145,6 +145,7 @@ pub enum Command {
     },
     ClearSites,
     ClearCache,
+    ChooseDownloadFolder,
 }
 
 impl Command {
@@ -166,7 +167,8 @@ impl Command {
             | SetSearchEngine { .. }
             | SetLanguages { .. }
             | ClearSites
-            | ClearCache => page == Page::Settings,
+            | ClearCache
+            | ChooseDownloadFolder => page == Page::Settings,
         }
     }
 }

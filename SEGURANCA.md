@@ -17,6 +17,14 @@ O filtro de transporte, o bloqueio de pop-ups e a verificação de origem na pon
 
 A revisão do Brisa 0.10.1 consultou o RustSec local por meio do `cargo-audit` e o OSV em 26 de novembro de 2026. A consulta ao OSV retornou zero avisos para 69 versões de crates e uma dependência npm fixadas nos arquivos de lock. A verificação do motor Chromium e das proteções do Windows tem escopo próprio. [RustSec](https://rustsec.org/) · [OSV](https://osv.dev/)
 
+## Atualizações no Brisa 1.0.6
+
+O atualizador consulta o repositório oficial, aceita versões estáveis mais recentes e exige o SHA-256 do instalador versionado. O download usa HTTPS com validação de certificados, limita o corpo da resposta e só segue redirecionamentos para os domínios de distribuição do GitHub permitidos no código. [Metadados de anexos do GitHub](https://docs.github.com/en/rest/releases/assets)
+
+O Brisa confere o SHA-256 dos dados recebidos e do arquivo gravado. Ele mantém o arquivo aberto em modo somente leitura, sem compartilhamento para escrita ou exclusão, até entregá-lo ao Windows. O arquivo preserva a marca de origem da internet. A versão 1.0.6 é distribuída sem assinatura Authenticode. [Reputação no SmartScreen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
+
+Em 27 de novembro de 2026, o `cargo-audit` consultou o banco RustSec atualizado e a consulta ao OSV retornou zero avisos para as 70 versões Rust e npm consultadas. O teste de rede baixou o instalador oficial e conferiu o tamanho, o SHA-256 e a marca da internet sem executá-lo. [RustSec](https://rustsec.org/) · [OSV](https://osv.dev/)
+
 ## Extensões
 
 A ativação e o gerenciamento de extensões ficam indisponíveis pela biblioteca `windows-webview 0.100.0` usada pelo Brisa. A API do motor aceita extensões locais descompactadas por perfil quando habilitada no ambiente. Uma implementação precisa de controles de instalação, habilitação e remoção, isolamento das páginas internas e pontos de entrada para as interfaces das extensões. A API de instalação por pasta oferece uma base para esse trabalho. [Extensões por perfil no WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2profile7) · [Opção do ambiente](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2environmentoptions6)

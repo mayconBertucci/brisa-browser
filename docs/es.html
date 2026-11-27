@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Conoce Brisa, un navegador para Windows que bloquea anuncios y rastreadores y ofrece una interfaz sencilla.">
+  <meta name="theme-color" content="#eaf7f2">
+  <title>Brisa — Navega con menos interrupciones</title>
+  <link rel="alternate" hreflang="pt-BR" href="index.html">
+  <link rel="alternate" hreflang="es" href="es.html">
+  <link rel="alternate" hreflang="en" href="en.html">
+  <link rel="icon" href="brisa.png" type="image/png" sizes="128x128">
+  <link rel="apple-touch-icon" href="brisa.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="download.js" defer></script>
+</head>
+<body data-local-download-root="../target/distribution/">
+  <a class="skip" href="#conteudo">Saltar al contenido</a>
+  <header class="header">
+    <div class="wrap nav">
+      <a class="brand" href="#conteudo"><img src="brisa.png" alt="" width="37" height="37"> Brisa</a>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <a href="#protecao">Protección</a>
+        <a href="#recursos">Funciones</a>
+        <a href="#instalar">Instalación</a>
+      </nav>
+      <div class="nav-actions">
+        <nav class="language-nav" aria-label="Idioma del sitio">
+          <a href="index.html" lang="pt-BR" hreflang="pt-BR" aria-label="Português do Brasil">PT</a>
+          <a href="es.html" lang="es" hreflang="es" aria-label="Español" aria-current="page">ES</a>
+          <a href="en.html" lang="en" hreflang="en" aria-label="English">EN</a>
+        </nav>
+        <a class="nav-download" href="#instalar">Descargar</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <h1>Navega con menos interrupciones</h1>
+          <p>Brisa bloquea anuncios de red, rastreadores y ventanas emergentes automáticas. Organiza tus marcadores, fija pestañas y consulta qué se ha bloqueado mientras navegas.</p>
+          <a class="download" href="https://github.com/mayconBertucci/brisa-browser/releases/latest/download/Brisa-Windows-x64.exe" data-local-file="Brisa-Windows-x64.exe" download>
+            <span class="download-icon" aria-hidden="true">↓</span> Descargar para Windows
+          </a>
+          <p class="requirements">Windows 10 y 11 de 64 bits</p>
+        </div>
+
+        <figure class="preview">
+          <div class="browser" lang="pt-BR" aria-hidden="true">
+            <div class="browser-tabs">
+              <img src="brisa.png" alt="" width="22" height="22">
+              <span class="sample-tab">▤ &nbsp; Marcadores</span><span class="add-tab">+</span>
+              <span class="window-buttons">− &nbsp; □ &nbsp; ×</span>
+            </div>
+            <div class="browser-nav"><span>‹ &nbsp; › &nbsp; ↻</span><span class="sample-url">◈ &nbsp; brisa://marcadores</span><span>⋮</span></div>
+            <div class="browser-bookmarks"><span>▱ &nbsp; Marcadores</span><span>Projetos</span><span>Leitura</span></div>
+            <div class="browser-body">
+              <aside><strong>Brisa</strong><span class="active-section">Marcadores</span><span>Histórico</span><span>Configurações</span><span>Bloqueios</span></aside>
+              <div class="sample-content">
+                <strong>Marcadores</strong>
+                <div class="sample-search">Pesquisar marcadores</div>
+                <div class="sample-row"><span>▱</span> Projetos</div>
+                <div class="sample-row"><span>◈</span> Leitura</div>
+                <div class="sample-row"><span>✉</span> Gmail</div>
+              </div>
+            </div>
+          </div>
+          <figcaption>Vista del gestor de marcadores en portugués con el tema oscuro</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="protection" id="protecao">
+      <div class="wrap protection-grid">
+        <div>
+          <h2>Consulta qué se ha bloqueado</h2>
+          <p>Abre el escudo de Brisa para consultar las direcciones bloqueadas y el motivo. Puedes pausar el filtro de un sitio durante la sesión.</p>
+        </div>
+        <dl class="protection-list">
+          <div><dt>Anuncios y rastreadores</dt><dd>Las reglas de EasyList y EasyPrivacy bloquean las solicitudes que coinciden con sus listas.</dd></div>
+          <div><dt>Ventanas emergentes automáticas</dt><dd>Brisa bloquea ventanas que se abren sin tu intervención y destinos identificados como anuncios.</dd></div>
+          <div><dt>Conexiones y sesiones</dt><dd>Brisa exige HTTPS de forma predeterminada. Las cookies necesarias para iniciar sesión siguen disponibles cuando se permite la solicitud.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="features wrap" id="recursos">
+      <div class="section-heading">
+        <h2>Del trabajo a la lectura</h2>
+        <p>Los atajos de siempre, con herramientas para organizar tus pestañas y personalizar Brisa.</p>
+      </div>
+      <div class="feature-list">
+        <article><h3>Pestañas y marcadores</h3><p>Fija las pestañas que más usas. Arrastra marcadores para ordenarlos o guardarlos en carpetas. Guarda páginas para liberar pestañas y volver a abrirlas más tarde.</p></article>
+        <article><h3>Barra de direcciones</h3><p>Busca con Google de forma predeterminada y consulta sugerencias de tu historial y tus marcadores. Pulsa <kbd>Ctrl</kbd> + <kbd>A</kbd> para seleccionar la dirección.</p></article>
+        <article><h3>Para leer o desarrollar</h3><p>Ajusta el zoom con <kbd>Ctrl</kbd> y la rueda del ratón. Elige el tema claro u oscuro y abre DevTools en un panel o en una ventana separada.</p></article>
+      </div>
+    </section>
+
+    <section class="performance" aria-labelledby="ram-heading">
+      <div class="wrap performance-grid">
+        <div>
+          <h2 id="ram-heading">76 MiB de RAM en la prueba local</h2>
+          <p>La interfaz en Rust usa el motor WebView2 de Windows. En la prueba con Brisa 1.0.0, un perfil nuevo ocupó 5,32 MiB en disco.</p>
+        </div>
+        <figure class="memory" aria-label="RAM privada en MiB">
+          <div><strong>Brisa</strong><span class="measure brisa" style="--share: 36.5%"></span><b>76,31</b></div>
+          <div><strong>Brave</strong><span class="measure" style="--share: 61%"></span><b>127,43</b></div>
+          <div><strong>Chrome</strong><span class="measure" style="--share: 100%"></span><b>209,09</b></div>
+          <figcaption>RAM privada en MiB. Mediana de tres ejecuciones con un perfil nuevo y una página local de 120 artículos, incluidos los procesos del motor. El consumo puede variar según las pestañas abiertas.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="install" id="instalar">
+      <div class="wrap install-grid">
+        <div>
+          <h2>Instala Brisa</h2>
+          <p>Abre el instalador y elige español, portugués o inglés. Cuando termine, encontrarás Brisa en el menú Inicio de Windows.</p>
+          <a class="download" href="https://github.com/mayconBertucci/brisa-browser/releases/latest/download/Brisa-Windows-x64.exe" data-local-file="Brisa-Windows-x64.exe" download>
+            <span class="download-icon" aria-hidden="true">↓</span> Descargar para Windows
+          </a>
+          <a class="checksum" href="https://github.com/mayconBertucci/brisa-browser/releases/latest/download/SHA256SUMS.txt" data-local-file="SHA256SUMS.txt">Comprobación SHA-256</a>
+          <a class="checksum" href="https://github.com/mayconBertucci/brisa-browser/releases/latest">Notas de la última versión</a>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>¿Qué necesito para instalarlo?</summary>
+            <p>Windows 10 u 11 con procesador x64. Si falta WebView2 Evergreen, el instalador lo descarga de los servidores de Microsoft.</p>
+          </details>
+          <details>
+            <summary>¿Necesito permisos de administrador?</summary>
+            <p>Elige <strong>Instalar para mí solamente</strong> para usar tu cuenta. Selecciona <strong>Instalar para todos los usuarios</strong> para instalar en Archivos de programa con la autorización de Windows.</p>
+          </details>
+          <details>
+            <summary>¿Puedo conservar mi perfil de Brisa?</summary>
+            <p>Cierra las versiones anteriores antes de abrir la nueva. La instalación usa el perfil local que Brisa ya creó en Windows.</p>
+          </details>
+          <details>
+            <summary>¿Cómo activo la traducción local?</summary>
+            <p>Instala Node.js en el directorio predeterminado de Windows. La primera traducción descarga el modelo de idioma. El texto de la página se procesa en tu equipo.</p>
+          </details>
+          <details>
+            <summary>¿El instalador tiene firma digital?</summary>
+            <p>Las notas de la versión indican si el instalador tiene firma Authenticode. Usa el SHA-256 publicado para comprobar la integridad del archivo.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap"><a class="brand" href="#conteudo"><img src="brisa.ico" alt="" width="27" height="27"> Brisa</a><p>Navegador para Windows con interfaz en Rust y motor Microsoft Edge WebView2.</p></div>
+  </footer>
+</body>
+</html>

@@ -12,9 +12,18 @@ use std::{
 
 use adblock::Engine;
 use windows_sys::Win32::{
-    Foundation::{HWND, POINT, RECT},
+    Foundation::{HWND, LPARAM, POINT, RECT},
     Graphics::Gdi::{BeginPaint, EndPaint, PAINTSTRUCT},
-    UI::{Controls::DRAWITEMSTRUCT, Shell::ShellExecuteW, WindowsAndMessaging::*},
+    System::Com::CoTaskMemFree,
+    UI::{
+        Controls::DRAWITEMSTRUCT,
+        Shell::{
+            BFFM_INITIALIZED, BFFM_SETSELECTIONW, BIF_EDITBOX, BIF_NEWDIALOGSTYLE,
+            BIF_RETURNONLYFSDIRS, BROWSEINFOW, GPFIDL_DEFAULT, SHBrowseForFolderW,
+            SHGetPathFromIDListEx, ShellExecuteW,
+        },
+        WindowsAndMessaging::*,
+    },
 };
 use windows_webview::{
     Controller, ControllerOptions, Deferral, DownloadOperation, DownloadStartingArgs,
@@ -348,8 +357,9 @@ struct Browser {
     next_tab: usize,
     closed: VecDeque<String>,
     downloads: VecDeque<(bool, DownloadOperation)>,
-    update: Option<semver::Version>,
+    update: Option<updates::Update>,
     update_check: Option<updates::Check>,
+    update_download: Option<updates::Download>,
     next_update_check: Option<Instant>,
     inspector: Option<crate::inspector::Panel>,
     dock: crate::inspector::Side,
@@ -494,7 +504,15 @@ impl Browser {
         };
         controller.set_visible(false)?;
         let prefs = self.runtime.preferences.get();
-        apply_theme(&controller.webview()?, prefs.theme);
+        let web = controller.webview()?;
+        apply_theme(&web, prefs.theme);
+        if let Some(folder) = self.store.data.download_folder.as_deref()
+            && let Ok(profile) = web.profile()
+            && profile.default_download_folder_path() != folder
+        {
+            // A saved folder may be on an external drive that is currently unavailable.
+            let _ = profile.set_default_download_folder_path(folder);
+        }
         let _ = controller.set_default_background_color(web_background(palette, center.is_some()));
         if let Some(page) = center {
             prepare_center(
@@ -836,7 +854,7 @@ impl Browser {
         if self.google_suggestions.poll() {
             self.show_suggestions();
         }
-        self.poll_updates();
+        self.poll_updates()?;
         // Modal Win32 dialogs and controller creation pump messages. Out-of-band
         // changes stay dirty until the main handler has control again.
         let changed: Vec<_> = self
@@ -1753,7 +1771,8 @@ impl Browser {
             }
             CenterPage::History => serde_json::json!({ "history": self.store.data.history }),
             CenterPage::Settings => {
-                serde_json::json!({ "preferences": self.store.data.preferences })
+                let folder = tab.web.profile().ok().map(|profile| profile.default_download_folder_path());
+                serde_json::json!({ "preferences": self.store.data.preferences, "download_folder": folder })
             }
             CenterPage::Protection => tab.protection_source
                 .and_then(|id| self.tabs.iter().find(|candidate| candidate.id == id && candidate.private == tab.private))
@@ -1819,6 +1838,12 @@ impl Browser {
                 Ok(())
             }
             ClearSites => self.clear_web_data(),
+            ChooseDownloadFolder => {
+                if self.choose_download_folder()? {
+                    self.send_center(tab, page, "Pasta de downloads salva.")?;
+                }
+                Ok(())
+            }
             ClearCache => {
                 let runtime = Rc::clone(&self.runtime);
                 if let Some(settings) = self.tabs.iter().find(|entry| entry.id == tab) {
@@ -2025,7 +2050,9 @@ impl Browser {
                     MenuItem::action(SETTINGS, "Configurações").section(),
                     MenuItem::action(
                         CHECK_UPDATES,
-                        if let Some(version) = &self.update {
+                        if self.update_download.is_some() {
+                            "Baixando atualização…".into()
+                        } else if let Some(version) = &self.update {
                             format!("Atualização disponível ({version})")
                         } else if self.update_check.is_some() {
                             "Verificando atualizações…".into()
@@ -2231,7 +2258,7 @@ impl Browser {
         Ok(())
     }
 
-    fn downloads_menu(&self) -> AppResult<()> {
+    fn downloads_menu(&mut self) -> AppResult<()> {
         let tab = self.current()?;
         let recent: Vec<_> = self
             .downloads
@@ -2240,8 +2267,9 @@ impl Browser {
             .take(8)
             .map(|(_, download)| download)
             .collect();
-        const MANAGE: u16 = 1;
-        const FIRST: u16 = 2;
+        const OPEN_FOLDER: u16 = 1;
+        const CHOOSE_FOLDER: u16 = 2;
+        const FIRST: u16 = 3;
         let mut items = vec![MenuItem::info("Downloads")];
         if recent.is_empty() {
             items.push(MenuItem::info("Nenhum download nesta sessão"));
@@ -2273,15 +2301,31 @@ impl Browser {
             };
             items.push(row.icon(Icon::Download));
         }
-        items.push(MenuItem::action(MANAGE, "Gerenciar downloads").section());
+        items.push(
+            MenuItem::action(OPEN_FOLDER, "Abrir pasta de downloads")
+                .icon(Icon::Folder)
+                .section(),
+        );
+        items.push(MenuItem::action(CHOOSE_FOLDER, "Alterar pasta…"));
         let action = chrome_menu::pick(
             self.runtime.hwnd,
             MenuAnchor::Control(self.toolbar.menu_anchor(DOWNLOADS), false),
             self.toolbar.palette(),
             &items,
         )?;
-        if action == MANAGE {
-            tab.web.open_default_download_dialog()?;
+        if action == OPEN_FOLDER {
+            let path = tab.web.profile()?.default_download_folder_path();
+            if !Path::new(&path).is_absolute() || !Path::new(&path).is_dir() {
+                return Err("A pasta de downloads não está disponível.".into());
+            }
+            self.open_download_path(&path)?;
+        } else if action == CHOOSE_FOLDER {
+            if self.choose_download_folder()?
+                && let Ok(tab) = self.current()
+                && tab.center == Some(CenterPage::Settings)
+            {
+                self.send_center(tab.id, CenterPage::Settings, "Pasta de downloads salva.")?;
+            }
         } else if let Some(download) = action
             .checked_sub(FIRST)
             .and_then(|index| recent.get(usize::from(index)))
@@ -2292,24 +2336,64 @@ impl Browser {
             if !file.is_absolute() || !file.is_file() {
                 return Err("O arquivo foi movido ou removido.".into());
             }
-            let filename = chrome::wide(&path);
-            // SAFETY: The path is the completed WebView2 download chosen by the user.
-            // ShellExecute opens it through Windows, retaining the file's security zone.
-            let opened = unsafe {
-                ShellExecuteW(
-                    self.runtime.hwnd,
-                    std::ptr::null(),
-                    filename.as_ptr(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    SW_SHOWNORMAL,
-                )
-            };
-            if opened as isize <= 32 {
-                return Err("O Windows não conseguiu abrir o arquivo.".into());
-            }
+            self.open_download_path(&path)?;
         }
         Ok(())
+    }
+
+    fn open_download_path(&self, path: &str) -> AppResult<()> {
+        let filename = chrome::wide(path);
+        // SAFETY: The path is a local directory or finished WebView2 download chosen by the user.
+        // ShellExecute opens it through Windows, retaining the file's security zone.
+        let opened = unsafe {
+            ShellExecuteW(
+                self.runtime.hwnd,
+                std::ptr::null(),
+                filename.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        if opened as isize <= 32 {
+            return Err("O Windows não conseguiu abrir o caminho selecionado.".into());
+        }
+        Ok(())
+    }
+
+    fn choose_download_folder(&mut self) -> AppResult<bool> {
+        let current = self
+            .current()?
+            .web
+            .profile()?
+            .default_download_folder_path();
+        let Some(folder) = pick_download_folder(self.runtime.hwnd, &current)? else {
+            return Ok(false);
+        };
+        let mut profiles = Vec::new();
+        for private in [false, true] {
+            if let Some(tab) = self.tabs.iter().find(|tab| tab.private == private) {
+                let profile = tab.web.profile()?;
+                let previous = profile.default_download_folder_path();
+                profiles.push((profile, previous));
+            }
+        }
+        let mut changed = 0;
+        let result = (|| -> AppResult<()> {
+            for (profile, _) in &profiles {
+                profile.set_default_download_folder_path(&folder)?;
+                changed += 1;
+            }
+            let mut updated = self.store.data.clone();
+            updated.download_folder = Some(folder);
+            self.save_profile_data(updated)
+        })();
+        if result.is_err() {
+            for (profile, previous) in &profiles[..changed] {
+                let _ = profile.set_default_download_folder_path(previous);
+            }
+        }
+        result.map(|()| true)
     }
 
     fn protection_details(&mut self) -> AppResult<()> {
@@ -2411,8 +2495,19 @@ impl Browser {
     }
 
     fn check_updates(&mut self) -> AppResult<()> {
-        if let Some(version) = &self.update {
-            return self.new_tab(Some(&updates::release_page(version)), false);
+        if self.update_download.is_some() {
+            return Ok(());
+        }
+        if let Some(update) = &self.update {
+            if chrome_menu::confirm_update(
+                self.runtime.hwnd,
+                MenuAnchor::Control(self.toolbar.menu_anchor(MENU), false),
+                self.toolbar.palette(),
+                &update.to_string(),
+            )? {
+                self.update_download = Some(updates::Download::start(update.clone())?);
+            }
+            return Ok(());
         }
         if let Some(check) = &mut self.update_check {
             check.notify = true;
@@ -2422,7 +2517,28 @@ impl Browser {
         Ok(())
     }
 
-    fn poll_updates(&mut self) {
+    fn poll_updates(&mut self) -> AppResult<()> {
+        if let Some(result) = self
+            .update_download
+            .as_ref()
+            .and_then(updates::Download::poll)
+        {
+            self.update_download = None;
+            match result.and_then(|installer| installer.launch(self.runtime.hwnd)) {
+                Ok(()) => {
+                    post(self.runtime.hwnd, WM_CLOSE, 0);
+                    return Ok(());
+                }
+                Err(error) => {
+                    dialog(
+                        self.runtime.hwnd,
+                        "Atualização do Brisa",
+                        &format!("Não foi possível instalar a atualização.\n\n{error}"),
+                        MB_ICONWARNING,
+                    );
+                }
+            }
+        }
         if self
             .next_update_check
             .is_some_and(|next| self.profile_window.take_update_request() || Instant::now() >= next)
@@ -2436,36 +2552,86 @@ impl Browser {
             .as_ref()
             .and_then(|check| check.poll().map(|result| (check.notify, result)))
         else {
-            return;
+            return Ok(());
         };
         self.update_check = None;
         let message = match result {
             Ok(Some(version)) => {
                 self.toolbar.set_update_available(true);
-                let message = format!(
-                    "O Brisa {version} está disponível. Abra o menu do Brisa para ver a versão."
-                );
                 self.update = Some(version);
-                message
+                return if notify { self.check_updates() } else { Ok(()) };
             }
             Ok(None) => {
                 self.update = None;
                 self.toolbar.set_update_available(false);
-                "Nenhuma atualização disponível.".into()
+                "Nenhuma atualização disponível."
             }
             Err(_) => {
                 "Não foi possível consultar as atualizações. Tente novamente em alguns minutos."
-                    .into()
             }
         };
         if notify {
             dialog(
                 self.runtime.hwnd,
                 "Atualizações do Brisa",
-                &message,
+                message,
                 MB_ICONINFORMATION,
             );
         }
+        Ok(())
+    }
+}
+
+fn pick_download_folder(owner: HWND, current: &str) -> io::Result<Option<String>> {
+    unsafe extern "system" fn select_initial(
+        hwnd: HWND,
+        message: u32,
+        _: LPARAM,
+        path: LPARAM,
+    ) -> i32 {
+        if message == BFFM_INITIALIZED {
+            // SAFETY: The synchronous folder dialog borrows the initial null-terminated path.
+            unsafe { SendMessageW(hwnd, BFFM_SETSELECTIONW, 1, path) };
+        }
+        0
+    }
+    let start = chrome::wide(current);
+    let mut display_name = [0u16; 260];
+    let options = BROWSEINFOW {
+        hwndOwner: owner,
+        pszDisplayName: display_name.as_mut_ptr(),
+        lpszTitle: windows_sys::w!("Escolha onde salvar os downloads do Brisa"),
+        ulFlags: BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE | BIF_EDITBOX,
+        lpfn: Some(select_initial),
+        lParam: start.as_ptr() as LPARAM,
+        ..Default::default()
+    };
+    // SAFETY: The UI thread is initialized as an STA. All options and callback data live through this call.
+    let selected = unsafe { SHBrowseForFolderW(&options) };
+    if selected.is_null() {
+        return Ok(None);
+    }
+    let mut path = [0u16; 32768];
+    // SAFETY: The returned shell item must be freed by CoTaskMemFree. The path buffer is valid for the supplied length.
+    let resolved = unsafe {
+        let result = SHGetPathFromIDListEx(
+            selected,
+            path.as_mut_ptr(),
+            path.len() as u32,
+            GPFIDL_DEFAULT,
+        );
+        CoTaskMemFree(selected.cast());
+        result != 0
+    };
+    let end = path
+        .iter()
+        .position(|&unit| unit == 0)
+        .unwrap_or(path.len());
+    let path = String::from_utf16(&path[..end]).map_err(io::Error::other)?;
+    if resolved && Path::new(&path).is_absolute() && Path::new(&path).is_dir() {
+        Ok(Some(path))
+    } else {
+        Err(io::Error::other("A pasta selecionada não está disponível."))
     }
 }
 
@@ -3283,6 +3449,7 @@ pub fn run() -> AppResult<()> {
         closed: VecDeque::new(),
         downloads: VecDeque::new(),
         update: None,
+        update_download: None,
         update_check: default_profile
             .then(|| updates::Check::start(false).ok())
             .flatten(),

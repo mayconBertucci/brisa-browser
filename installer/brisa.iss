@@ -1,4 +1,4 @@
-#define AppVersion "1.0.5"
+#define AppVersion "1.0.6"
 
 [Setup]
 AppId={{BB6FD759-7F2E-4520-AC26-CCD7100E0DFB}
@@ -31,9 +31,19 @@ RestartApplications=no
 
 [Languages]
 Name: "ptbr"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
+
+[CustomMessages]
+ptbr.PreparingWebView2=Preparando o Microsoft Edge WebView2.
+es.PreparingWebView2=Preparando Microsoft Edge WebView2.
+en.PreparingWebView2=Preparing Microsoft Edge WebView2.
+ptbr.WebView2Required=O Microsoft Edge WebView2 é necessário. Conecte-se à internet e tente novamente.
+es.WebView2Required=Microsoft Edge WebView2 es necesario. Conéctate a Internet e inténtalo de nuevo.
+en.WebView2Required=Microsoft Edge WebView2 is required. Connect to the internet and try again.
 
 [Tasks]
-Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 
 [Files]
 Source: "..\.toolchain\webview2\MicrosoftEdgeWebview2Setup.exe"; Flags: dontcopy
@@ -50,9 +60,15 @@ Name: "{autoprograms}\Brisa"; Filename: "{app}\brisa.exe"; WorkingDir: "{app}"
 Name: "{autodesktop}\Brisa"; Filename: "{app}\brisa.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\brisa.exe"; Description: "Abrir o Brisa"; Flags: nowait postinstall runasoriginaluser skipifsilent unchecked
+Filename: "{app}\brisa.exe"; Description: "{cm:LaunchProgram,Brisa}"; Flags: nowait postinstall runasoriginaluser skipifsilent unchecked
+Filename: "{app}\brisa.exe"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser skipifnotsilent; Check: RestartAfterUpdate
 
 [Code]
+function RestartAfterUpdate(): Boolean;
+begin
+  Result := ExpandConstant('{param:BRISAUPDATE|0}') = '1';
+end;
+
 function HasWebView2(): Boolean;
 var
   Version: String;
@@ -73,10 +89,10 @@ begin
   Result := '';
   if HasWebView2() then
     Exit;
-  WizardForm.PreparingLabel.Caption := 'Preparando o Microsoft Edge WebView2.';
+  WizardForm.PreparingLabel.Caption := CustomMessage('PreparingWebView2');
   ExtractTemporaryFile('MicrosoftEdgeWebview2Setup.exe');
   if not Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe'),
     '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
     not HasWebView2() then
-    Result := 'O Microsoft Edge WebView2 é necessário. Conecte-se à internet e tente novamente.';
+    Result := CustomMessage('WebView2Required');
 end;

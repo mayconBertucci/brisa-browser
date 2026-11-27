@@ -81,8 +81,10 @@ try {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $installer = "Brisa-$projectVersion-Windows-x64.exe"
     if ($CodeSigningThumbprint) { Sign-BrisaFile (Join-Path $output $installer) }
+    $latestInstaller = 'Brisa-Windows-x64.exe'
+    Copy-Item -LiteralPath (Join-Path $output $installer) -Destination (Join-Path $output $latestInstaller) -Force
     $hash = (Get-FileHash -LiteralPath (Join-Path $output $installer) -Algorithm SHA256).Hash.ToLowerInvariant()
-    "$hash  $installer" | Set-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Encoding ASCII
+    @("$hash  $installer", "$hash  $latestInstaller") | Set-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Encoding ASCII
     $kit = Join-Path (Resolve-Path -LiteralPath $output).Path "Brisa-$projectVersion-GitHub-Pages.zip"
     $temporaryKit = "$kit.part"
     if (Test-Path -LiteralPath $temporaryKit) { Remove-Item -LiteralPath $temporaryKit }
@@ -96,6 +98,7 @@ try {
             'docs/styles.css' = 'docs/styles.css'
             'PUBLICAR.md' = 'installer/PUBLICAR.md'
             "release/$installer" = (Join-Path $output $installer)
+            "release/$latestInstaller" = (Join-Path $output $latestInstaller)
             'release/SHA256SUMS.txt' = (Join-Path $output 'SHA256SUMS.txt')
         }
         foreach ($file in $files.GetEnumerator()) {
@@ -103,18 +106,20 @@ try {
                 $archive, (Resolve-Path -LiteralPath $file.Value).Path, $file.Key
             )
         }
-        $index = $archive.CreateEntry('docs/index.html')
-        $writer = [System.IO.StreamWriter]::new($index.Open(), [System.Text.UTF8Encoding]::new($false))
-        try {
-            $writer.Write((Get-Content -LiteralPath 'docs/index.html' -Raw).Replace('../target/distribution/', '../release/'))
-        } finally {
-            $writer.Dispose()
+        foreach ($page in 'index.html', 'es.html', 'en.html') {
+            $entry = $archive.CreateEntry("docs/$page")
+            $writer = [System.IO.StreamWriter]::new($entry.Open(), [System.Text.UTF8Encoding]::new($false))
+            try {
+                $writer.Write((Get-Content -LiteralPath "docs/$page" -Raw -Encoding UTF8).Replace('../target/distribution/', '../release/'))
+            } finally {
+                $writer.Dispose()
+            }
         }
     } finally {
         $archive.Dispose()
     }
     Move-Item -LiteralPath $temporaryKit -Destination $kit -Force
-    Get-Item -LiteralPath (Join-Path $output $installer), $kit
+    Get-Item -LiteralPath (Join-Path $output $installer), (Join-Path $output $latestInstaller), $kit
 } finally {
     Pop-Location
 }
