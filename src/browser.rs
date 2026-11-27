@@ -478,13 +478,18 @@ impl Browser {
         private: bool,
         center: Option<CenterPage>,
     ) -> AppResult<()> {
-        let mut tab = self.prepare_new_tab(private, center, None)?;
-        tab.page.borrow_mut().new_tab_home = target.is_none() && !private && center.is_none();
-        if center.is_none() {
+        let tab = self.prepare_new_tab(private, center, None)?;
+        self.start_tab(tab, target, self.tabs.len())
+    }
+
+    fn start_tab(&mut self, mut tab: Tab, target: Option<&str>, index: usize) -> AppResult<()> {
+        let internal = tab.center.is_some();
+        tab.page.borrow_mut().new_tab_home = target.is_none() && !tab.private && !internal;
+        if !internal {
             register_resource_filter(&mut tab, &self.runtime)?;
         }
-        self.add_tab(tab)?;
-        if center.is_some() {
+        self.add_tab(tab, index)?;
+        if internal {
             self.current()?.web.navigate(center::URL)?;
         } else {
             self.navigate(target)?;
@@ -493,6 +498,34 @@ impl Browser {
             }
         }
         Ok(())
+    }
+
+    fn duplicate_tab(&mut self, index: usize) -> AppResult<()> {
+        let Some(original) = self.tabs.get(index) else {
+            return Ok(());
+        };
+        let position = if original.pinned {
+            self.tabs.iter().take_while(|tab| tab.pinned).count()
+        } else {
+            index + 1
+        };
+        let address = {
+            let page = original.page.borrow();
+            protection::web_url(&page.committed_address).and_then(|committed| {
+                // Same-document navigation can change the URL without a completion event.
+                let visible = protection::web_url(&original.web.source())
+                    .filter(|url| url.origin() == committed.origin())
+                    .unwrap_or(committed);
+                (!page.new_tab_home || visible.as_str() != GOOGLE_HOME).then_some(visible)
+            })
+        };
+        let mut duplicate = self.prepare_new_tab(original.private, original.center, None)?;
+        duplicate.protection_source = original.protection_source;
+        self.start_tab(
+            duplicate,
+            address.as_ref().map(|url| url.as_str()),
+            position,
+        )
     }
 
     fn prepare_new_tab(
@@ -553,8 +586,8 @@ impl Browser {
         }
     }
 
-    fn add_tab(&mut self, tab: Tab) -> AppResult<()> {
-        let index = self.tabs.len();
+    fn add_tab(&mut self, tab: Tab, index: usize) -> AppResult<()> {
+        let end = self.tabs.len();
         self.toolbar.add_tab(tab.center.map_or(
             if tab.private {
                 "Aba privada"
@@ -563,7 +596,13 @@ impl Browser {
             },
             CenterPage::title,
         ))?;
-        self.tabs.push(tab);
+        if index < end {
+            self.toolbar.move_tab(end, index, false);
+            if self.active >= index {
+                self.active += 1;
+            }
+        }
+        self.tabs.insert(index, tab);
         self.next_tab = self.next_tab.wrapping_add(1);
         self.select(index)
     }
@@ -628,6 +667,7 @@ impl Browser {
         };
         let pin = !tab.pinned;
         let items = [
+            MenuItem::action(3, "Duplicar aba").icon(Icon::Duplicate),
             MenuItem::action(1, if pin { "Fixar aba" } else { "Desafixar aba" }).icon(Icon::Pin),
             MenuItem::action(2, "Fechar aba")
                 .icon(Icon::Close)
@@ -665,6 +705,7 @@ impl Browser {
                 self.move_tab_to_pins(index, pin, address);
             }
             2 => self.close_tab(index, true)?,
+            3 => self.duplicate_tab(index)?,
             _ => {}
         }
         Ok(())
@@ -2550,7 +2591,7 @@ impl Browser {
                     // WebView2 replaces the underlying web contents when it
                     // adopts a popup. Register its request filter afterwards.
                     register_resource_filter(&mut child, &self.runtime)?;
-                    self.add_tab(child)?;
+                    self.add_tab(child, self.tabs.len())?;
                 }
                 deferral.complete()?;
             }

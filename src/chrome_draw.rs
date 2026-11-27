@@ -58,6 +58,7 @@ pub enum Icon {
     DockRight,
     Undock,
     Pin,
+    Duplicate,
 }
 
 pub struct Canvas(*mut GpGraphics);
@@ -254,6 +255,16 @@ impl Canvas {
                     (7.0, 3.5),
                 ]);
                 line(&[(10.0, 12.2), (10.0, 17.3)]);
+            }
+            Icon::Duplicate => {
+                line(&[(7.0, 3.0), (17.0, 3.0), (17.0, 13.0)]);
+                line(&[
+                    (3.0, 7.0),
+                    (13.0, 7.0),
+                    (13.0, 17.0),
+                    (3.0, 17.0),
+                    (3.0, 7.0),
+                ]);
             }
             Icon::Zoom => {
                 // SAFETY: The drawing session and the pen both live through this call.

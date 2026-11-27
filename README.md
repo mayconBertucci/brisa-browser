@@ -43,7 +43,7 @@ Medição no mesmo Windows, com uma página local de 120 artigos, um perfil novo
 | Recurso | Como usar |
 | --- | --- |
 | Barra de endereços | **Ctrl+L** foca o campo. Um duplo clique ou **Ctrl+A** seleciona o endereço inteiro. Setas e **Enter** escolhem uma sugestão. Os marcadores e o histórico fornecem sugestões locais. Com o Google selecionado, o Brisa também pode enviar termos parciais para obter sugestões em abas normais. Desative essa opção em **Configurações › Navegação**. |
-| Abas e página inicial | **Ctrl+T** abre o Google com o campo de endereço pronto para digitar. Um ícone animado aparece quando a página demora a carregar. Arraste uma aba para mudar sua posição. Clique com o botão direito para fixar, desafixar ou fechar. As abas normais fixadas voltam depois de reiniciar. |
+| Abas e página inicial | **Ctrl+T** abre o Google com o campo de endereço pronto para digitar. Um ícone animado aparece quando a página demora a carregar. Arraste uma aba para mudar sua posição. Clique com o botão direito para duplicar, fixar, desafixar ou fechar. As abas normais fixadas voltam depois de reiniciar. |
 | Favoritos | Clique na estrela ou use **Ctrl+D**. Arraste para uma borda de outro item para reordenar e solte no centro de uma pasta para mover para dentro. **Ctrl+Shift+O** abre o gerenciador. Use o caminho acima da lista para mover de volta a uma pasta superior. |
 | Histórico | Use **Ctrl+H** para pesquisar visitas e excluir itens selecionados ou um dia de cada vez. |
 | Aparência | Em **⋯ › Configurações**, escolha tema claro ou escuro e a cor Jade, Azul ou Violeta. |
