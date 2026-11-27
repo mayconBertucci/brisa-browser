@@ -19,7 +19,7 @@ const workspace = await mkdtemp(join(temporaryRoot, "brisa-privacy-"));
 const profile = join(workspace, "profile");
 const rules = join(workspace, "fixture.txt");
 const server = createServer(handle);
-await writeFile(rules, "/tracker.js|$script\n/ad-popup|$popup\n");
+await writeFile(rules, "/tracker.js|$script\n/ad-popup|$popup\n/newsletter-click|$other\n/newsletter-hop|$other\n");
 
 server.listen(0, "127.0.0.1");
 await once(server, "listening");
@@ -53,6 +53,23 @@ function handle(request, response) {
   };
 
   switch (url.pathname) {
+    case "/newsletter":
+      html("Informativo de teste", `
+        <a id="offer" href="${providerSite}/newsletter-click" target="_blank" rel="noopener noreferrer">
+          Ver oferta
+        </a>
+        <button id="popup" onclick="window.open('${providerSite}/explicit-popup', '_blank', 'popup,width=320,height=640')">Abrir pop-up</button>
+      `);
+      break;
+    case "/newsletter-click":
+      response.writeHead(302, { Location: testSite + "/newsletter-hop" }).end();
+      break;
+    case "/newsletter-hop":
+      response.writeHead(302, { Location: providerSite + "/offer?category=running" }).end();
+      break;
+    case "/offer":
+      html("Oferta aberta", `<script src="${testSite}/tracker.js"></script>`);
+      break;
     case "/sign-in":
       setCookie(sessionCookie, 600);
       html("Prova de privacidade", `
@@ -340,12 +357,30 @@ try {
     await inspect(page, "fetch('/logout').then(r => r.status)");
     assert.equal(await inspect(page, "fetch('/session').then(r => r.status)"), 401);
   });
+  const profileFile = join(profile, "brisa.json");
+  const savedProfile = JSON.parse(await readFile(profileFile, "utf8"));
+  savedProfile.preferences.cross_site_popups = false;
+  await writeFile(profileFile, JSON.stringify(savedProfile));
+  await inBrowser("/newsletter", async (page, targets) => {
+    await until(() => inspect(page, "Boolean(document.querySelector('#offer'))"), "link do informativo");
+    await click(page, "#popup");
+    await click(page, "#offer");
+    await until(async () => (await targets()).some(({ url, title }) => (
+      url === providerSite + "/offer?category=running" && title === "Oferta aberta"
+    )), "oferta aberta após o clique e os redirecionamentos");
+    assert.deepEqual(requests.filter(({ path }) => path.startsWith("/newsletter-")).map(({ path }) => path), [
+      "/newsletter-click", "/newsletter-hop",
+    ]);
+    assert.equal(requests.some(({ path }) => path === "/tracker.js"), false);
+    assert.equal(requests.some(({ path }) => path === "/explicit-popup"), false);
+  });
   const usability = auditDirectory ? await inBrowser("brisa://marcadores", (page, targets) =>
     auditCenter({ page, targets, inspect, until, auditDirectory, testSite, profile })) : undefined;
     console.log(JSON.stringify({
     privacy: { ...result, session_survived_restart: true, session_survived_cache_clear: true, logout_expired_session: true },
     history,
     settings_search: true,
+    deliberate_newsletter_link_followed: true,
     default_search_is_google: true,
     shared_internal_document: true,
     appearance_persisted: true,

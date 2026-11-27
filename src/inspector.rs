@@ -2,6 +2,7 @@ use std::{
     cell::Cell,
     io,
     ptr::null_mut,
+    rc::Rc,
     sync::OnceLock,
     time::{Duration, Instant},
 };
@@ -23,6 +24,69 @@ use crate::{
 };
 
 pub const DETACHED: u16 = 217;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct Viewport {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Viewport {
+    pub const PHONE: Self = Self {
+        width: 390,
+        height: 844,
+    };
+    pub const COMPACT: Self = Self {
+        width: 360,
+        height: 800,
+    };
+    pub const TABLET: Self = Self {
+        width: 768,
+        height: 1024,
+    };
+
+    pub fn custom(width: u32, height: u32) -> Option<Self> {
+        ((240..=2560).contains(&width) && (240..=2560).contains(&height))
+            .then_some(Self { width, height })
+    }
+
+    pub fn rotated(self) -> Self {
+        Self {
+            width: self.height,
+            height: self.width,
+        }
+    }
+
+    pub fn label(self) -> String {
+        format!("{} × {} px", self.width, self.height)
+    }
+
+    fn fit(self, area: RECT, dpi: u32) -> (RECT, u32) {
+        let width = (area.right - area.left).max(1);
+        let height = (area.bottom - area.top).max(1);
+        let density = f64::from(dpi.max(96)) / 96.0;
+        let natural_width = f64::from(self.width) * density;
+        let natural_height = f64::from(self.height) * density;
+        let zoom = (f64::from(width) / natural_width)
+            .min(f64::from(height) / natural_height)
+            .min(1.0);
+        let scale = ((zoom * 1000.0).floor() as u32).max(1);
+        let zoom = f64::from(scale) / 1000.0;
+        let fitted_width = ((natural_width * zoom).round() as i32).clamp(1, width);
+        let fitted_height = ((natural_height * zoom).round() as i32).clamp(1, height);
+        let left = area.left + (width - fitted_width) / 2;
+        let top = area.top + (height - fitted_height) / 2;
+        (
+            RECT {
+                left,
+                top,
+                right: left + fitted_width,
+                bottom: top + fitted_height,
+            },
+            scale,
+        )
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -84,12 +148,16 @@ pub struct Panel {
     pub tab: usize,
     owner: HWND,
     palette: Palette,
+    web: WebView,
     host: ViewHost,
     detached: Option<DetachedFrame>,
     target: Option<DevToolsWindow>,
     search: Option<Search>,
     dock: bool,
     area: Cell<Option<(i32, i32, i32, i32)>>,
+    viewport: Option<Viewport>,
+    applied_viewport: Cell<Option<(Viewport, u32)>>,
+    viewport_error: Rc<Cell<bool>>,
 }
 
 impl Panel {
@@ -112,13 +180,99 @@ impl Panel {
             tab,
             owner,
             palette,
+            web: web.clone(),
             host,
             detached: None,
             target: None,
             search,
             dock,
             area: Cell::new(None),
+            viewport: None,
+            applied_viewport: Cell::new(None),
+            viewport_error: Rc::new(Cell::new(false)),
         })
+    }
+
+    pub fn viewport(&self) -> Option<Viewport> {
+        self.viewport
+    }
+
+    pub fn set_viewport(&mut self, viewport: Option<Viewport>) -> windows_result::Result<()> {
+        if self.viewport.is_none() && viewport.is_some() {
+            let failed = Rc::clone(&self.viewport_error);
+            self.web.call_dev_tools_protocol_method(
+                "Emulation.setTouchEmulationEnabled",
+                r#"{"enabled":true,"maxTouchPoints":5}"#,
+                move |result| {
+                    if result.is_err() {
+                        failed.set(true);
+                    }
+                },
+            )?;
+        } else if self.viewport.is_some() && viewport.is_none() {
+            self.clear_viewport();
+        }
+        self.viewport_error.set(false);
+        self.viewport = viewport;
+        Ok(())
+    }
+
+    fn clear_viewport(&self) {
+        self.applied_viewport.set(None);
+        let _ = self.web.call_dev_tools_protocol_method(
+            "Emulation.clearDeviceMetricsOverride",
+            "{}",
+            |_| {},
+        );
+        let _ = self.web.call_dev_tools_protocol_method(
+            "Emulation.setTouchEmulationEnabled",
+            r#"{"enabled":false}"#,
+            |_| {},
+        );
+    }
+
+    pub fn take_viewport_error(&self) -> bool {
+        self.viewport_error.replace(false) && self.viewport.is_some()
+    }
+
+    pub fn layout_page(&self, area: RECT) -> RECT {
+        let Some(viewport) = self.viewport else {
+            return area;
+        };
+        // SAFETY: The browser owns this top-level window throughout the panel lifetime.
+        let dpi = unsafe { GetDpiForWindow(self.owner) };
+        let (bounds, scale) = viewport.fit(area, dpi);
+        if self.applied_viewport.get() != Some((viewport, scale)) {
+            let params = serde_json::json!({
+                "width": viewport.width, "height": viewport.height,
+                "screenWidth": viewport.width, "screenHeight": viewport.height,
+                "mobile": true, "deviceScaleFactor": 2,
+                "scale": f64::from(scale) / 1000.0,
+                "screenOrientation": if viewport.width > viewport.height {
+                    serde_json::json!({ "type": "landscapePrimary", "angle": 90 })
+                } else {
+                    serde_json::json!({ "type": "portraitPrimary", "angle": 0 })
+                },
+            });
+            let failed = Rc::clone(&self.viewport_error);
+            if self
+                .web
+                .call_dev_tools_protocol_method(
+                    "Emulation.setDeviceMetricsOverride",
+                    &params.to_string(),
+                    move |result| {
+                        if result.is_err() {
+                            failed.set(true);
+                        }
+                    },
+                )
+                .is_err()
+            {
+                self.viewport_error.set(true);
+            }
+            self.applied_viewport.set(Some((viewport, scale)));
+        }
+        bounds
     }
 
     pub fn poll(&mut self) -> bool {
@@ -220,6 +374,9 @@ impl Panel {
 
 impl Drop for Panel {
     fn drop(&mut self) {
+        if self.viewport.is_some() {
+            self.clear_viewport();
+        }
         if let Some(window) = &mut self.target
             && window.alive()
         {

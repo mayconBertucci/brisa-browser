@@ -52,6 +52,7 @@ pub enum Icon {
     Chevron,
     Globe,
     Zoom,
+    Mobile,
     DockLeft,
     DockBottom,
     DockRight,
@@ -267,6 +268,19 @@ impl Canvas {
                     )
                 };
                 line(&[(11.0, 11.0), (17.0, 17.0)]);
+            }
+            Icon::Mobile => {
+                line(&[(3.0, 13.0), (3.0, 4.0), (15.0, 4.0), (15.0, 6.0)]);
+                line(&[(3.0, 13.0), (8.0, 13.0)]);
+                line(&[(7.0, 16.0), (8.0, 13.0)]);
+                line(&[
+                    (11.0, 8.0),
+                    (17.0, 8.0),
+                    (17.0, 17.0),
+                    (11.0, 17.0),
+                    (11.0, 8.0),
+                ]);
+                line(&[(13.4, 14.7), (14.6, 14.7)]);
             }
             Icon::DockLeft | Icon::DockBottom | Icon::DockRight | Icon::Undock => {
                 if matches!(icon, Icon::Undock) {

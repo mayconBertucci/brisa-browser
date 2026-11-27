@@ -4324,6 +4324,19 @@ impl ICoreWebView2NewWindowRequestedEventArgs {
             .and_then(|| windows_core::imp::Type::from_abi(result__))
         }
     }
+    pub(crate) unsafe fn WindowFeatures(
+        &self,
+    ) -> windows_core::Result<ICoreWebView2WindowFeatures> {
+        let mut result = core::ptr::null_mut();
+        // SAFETY: This interface is live. WebView2 writes the owned COM interface to the output slot.
+        unsafe {
+            (windows_core::Interface::vtable(self).WindowFeatures)(
+                windows_core::Interface::as_raw(self),
+                &mut result,
+            )
+            .and_then(|| windows_core::imp::Type::from_abi(result))
+        }
+    }
 }
 #[repr(C)]
 pub struct ICoreWebView2NewWindowRequestedEventArgs_Vtbl {
@@ -4351,7 +4364,32 @@ pub struct ICoreWebView2NewWindowRequestedEventArgs_Vtbl {
         *mut core::ffi::c_void,
         *mut *mut core::ffi::c_void,
     ) -> windows_core::HRESULT,
-    WindowFeatures: usize,
+    pub WindowFeatures: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+}
+windows_core::imp::define_interface!(
+    ICoreWebView2WindowFeatures,
+    ICoreWebView2WindowFeatures_Vtbl,
+    0x5eaf559f_b46e_4397_8860_e422f287ff1e
+);
+#[repr(C)]
+pub struct ICoreWebView2WindowFeatures_Vtbl {
+    pub base__: windows_core::IUnknown_Vtbl,
+    HasPosition: usize,
+    HasSize: usize,
+    Left: usize,
+    Top: usize,
+    Height: usize,
+    Width: usize,
+    ShouldDisplayMenuBar: usize,
+    ShouldDisplayStatus: usize,
+    pub ShouldDisplayToolbar: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut windows_core::BOOL,
+    ) -> windows_core::HRESULT,
+    ShouldDisplayScrollBars: usize,
 }
 windows_core::imp::define_interface!(
     ICoreWebView2NewWindowRequestedEventHandler,

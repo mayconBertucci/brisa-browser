@@ -1,4 +1,4 @@
-# Brisa 1.0.6
+# Brisa 1.0.7
 
 O Brisa é um navegador gratuito para Windows x64. A interface e a lógica do aplicativo são escritas em Rust. O Microsoft Edge WebView2 renderiza as páginas e mantém o motor atualizado pelo Windows.
 
@@ -14,7 +14,7 @@ Quando o WebView2 Evergreen está ausente, o instalador baixa o runtime da Micro
 
 Se aparecer **Este perfil do Brisa já está aberto**, localize as janelas de versões anteriores pelo menu da barra de tarefas e feche-as antes de abrir a versão nova. O arquivo de bloqueio protege os favoritos, as configurações e os dados da sessão contra atualizações de duas versões ao mesmo tempo.
 
-O instalador da versão 1.0.6 é distribuído sem assinatura Authenticode. O SmartScreen pode sinalizar um aplicativo cuja reputação ainda é desconhecida. Compare o resultado do comando abaixo com a soma SHA-256 publicada na release. [Soma SHA-256 da versão mais recente](https://github.com/mayconBertucci/brisa-browser/releases/latest/download/SHA256SUMS.txt) · [Reputação no SmartScreen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
+O instalador da versão 1.0.7 é distribuído sem assinatura Authenticode. O SmartScreen pode sinalizar um aplicativo cuja reputação ainda é desconhecida. Compare o resultado do comando abaixo com a soma SHA-256 publicada na release. [Soma SHA-256 da versão mais recente](https://github.com/mayconBertucci/brisa-browser/releases/latest/download/SHA256SUMS.txt) · [Reputação no SmartScreen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
 
 ```powershell
 Get-FileHash -LiteralPath .\Brisa-Windows-x64.exe -Algorithm SHA256
@@ -50,7 +50,7 @@ Medição no mesmo Windows, com uma página local de 120 artigos, um perfil novo
 | Zoom | Use **Ctrl + roda do mouse**. O percentual aparece ao lado do endereço. **Ctrl+0** restaura 100%. |
 | Privacidade | **Ctrl+Shift+N** abre uma aba privada. Em **Dados de sites**, **Esvaziar cache** preserva os cookies. |
 | Tradução | Em **⋯ › Ferramentas**, use **Traduzir página** ou **Mostrar texto original**. Defina os idiomas preferidos em **Configurações › Idiomas**. |
-| DevTools | Pressione **F12** para inspecionar a aba. Os ícones do Brisa permitem encaixar à esquerda, embaixo ou à direita, ou abrir uma janela separada. |
+| DevTools | Pressione **F12** para inspecionar a aba. Use o ícone de celular no painel para ativar a visualização responsiva. Você pode escolher um tamanho de celular ou tablet, informar as dimensões e girar a tela. O Brisa restaura a visualização original ao fechar o inspetor. |
 | Downloads | Use o botão **Downloads** ou **Ctrl+J** para ver os downloads recentes desta sessão e abrir arquivos concluídos. Clique fora do painel para fechá-lo. Escolha **Alterar pasta…** no painel ou **Configurações › Downloads** para definir onde salvar os próximos arquivos. |
 | Atualizações | No perfil padrão, o Brisa consulta novas versões ao abrir, quando o atalho reativa a janela e a cada seis horas. No menu **⋯ › Atualização disponível**, confirme em **Atualizar**. O Brisa baixa o instalador oficial, verifica seu SHA-256 e pede ao Windows para iniciá-lo. O instalador atualiza a instalação existente e reabre o navegador. O Windows pode pedir sua confirmação. |
 | Estante | Use **Guardar aba na estante**. O Brisa libera a aba e carrega a página novamente quando você a reabre. |
@@ -63,7 +63,7 @@ Para usar o tradutor, instale o [Node.js](https://nodejs.org/pt-br/download) no 
 
 A [revisão de segurança](SEGURANCA.md) descreve as verificações de origem, o filtro de rede local e a auditoria das dependências. A lista de bloqueios fica na memória durante a navegação e omite parâmetros e fragmentos dos endereços.
 
-Passe o mouse sobre o escudo para ler o estado da conexão e saber se o filtro está pausado. Clique para abrir **Ver bloqueios e conexão**. Uma navegação convertida em download conserva o estado da página anterior. A consulta de atualizações envia uma requisição HTTPS ao endpoint público de releases do projeto, com a versão instalada no cabeçalho do cliente.
+Passe o mouse sobre o escudo para ler o estado da conexão e saber se o filtro está pausado. Clique para abrir **Ver bloqueios e conexão**. Aberturas por clique seguem as regras de navegação e pop-ups. O filtro de recursos continua atuando sobre os scripts, pixels e outras requisições da página. Uma navegação convertida em download conserva o estado da página anterior. A consulta de atualizações envia uma requisição HTTPS ao endpoint público de releases do projeto, com a versão instalada no cabeçalho do cliente.
 
 Sites podem detectar a ausência de recursos que esperam carregar. Anúncios entregues junto ao conteúdo podem continuar visíveis. Alguns provedores de login aplicam regras próprias a WebViews. O [inventário de paridade](PARIDADE.md) acompanha recursos como extensões, sincronização, gerenciamento de senhas e cobertura de anúncios na página.
 
@@ -90,4 +90,4 @@ Para assinar o aplicativo e o instalador, adicione `-CodeSigningThumbprint` com 
 
 ## Página de lançamento
 
-Abra [a página local do Brisa](docs/index.html). O site é estático e pode ser publicado no GitHub Pages de um repositório público dedicado ao Brisa. Use o [kit de publicação](target/distribution/Brisa-1.0.6-GitHub-Pages.zip) e siga o [guia de publicação](installer/PUBLICAR.md).
+Abra [a página local do Brisa](docs/index.html). O site é estático e pode ser publicado no GitHub Pages de um repositório público dedicado ao Brisa. Use o [kit de publicação](target/distribution/Brisa-1.0.7-GitHub-Pages.zip) e siga o [guia de publicação](installer/PUBLICAR.md).

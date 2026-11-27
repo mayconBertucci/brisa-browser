@@ -116,6 +116,19 @@ impl NewWindowRequestedArgs {
         unsafe { self.0.IsUserInitiated() }.is_ok_and(|value| value.as_bool())
     }
 
+    /// Returns whether Chromium requested a popup window instead of a regular tab.
+    /// Treats an unavailable disposition as a popup.
+    pub fn requests_popup(&self) -> bool {
+        let mut toolbar = BOOL::default();
+        // SAFETY: Both COM interfaces stay alive for their calls and `toolbar` is writable.
+        unsafe {
+            self.0.WindowFeatures().map_or(true, |features| {
+                (features.vtable().ShouldDisplayToolbar)(features.as_raw(), &mut toolbar).is_err()
+                    || !toolbar.as_bool()
+            })
+        }
+    }
+
     /// Returns `true` if the request has been marked as handled.
     pub fn is_handled(&self) -> bool {
         unsafe { self.0.Handled() }.is_ok_and(|value| value.as_bool())

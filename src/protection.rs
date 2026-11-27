@@ -88,20 +88,15 @@ fn build_popup_engine(extra_rules: Option<&str>) -> Engine {
 }
 
 pub fn popup_blocked(network: &Engine, popup: &PopupEngine, url: &str, source: &str) -> bool {
-    let (Ok(document), Ok(other)) = (
-        Request::new(url, source, "document"),
-        Request::new(url, source, "other"),
-    ) else {
+    let Ok(document) = Request::new(url, source, "document") else {
         return false;
     };
     let document_match = network.check_network_request(&document);
-    if document_match.important {
-        return true;
-    }
-    let network_match = network.check_network_request_subset(&other, document_match.matched, false);
-    network_match.important
+    // A destination opened by a user gesture is a top-level document. Rules
+    // for pixels and other subresources must not stop an intentional visit.
+    document_match.important
         || popup
-            .check_network_request_subset(&document, network_match.matched, false)
+            .check_network_request_subset(&document, document_match.matched, false)
             .matched
 }
 

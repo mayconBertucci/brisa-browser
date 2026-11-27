@@ -203,7 +203,7 @@ struct Page {
     record: bool,
     update_pending: bool,
     blocks: BlockLog,
-    popup_source: Option<String>,
+    popup_source: Option<NewWindowSource>,
     local_navigation: Option<url::Url>,
     favicon: Option<Rc<Favicon>>,
     favicon_request: u64,
@@ -268,10 +268,15 @@ impl Drop for Tab {
     }
 }
 
+struct NewWindowSource {
+    origin: String,
+    requests_popup: bool,
+}
+
 enum Pending {
     Popup {
         tab: usize,
-        source: String,
+        source: NewWindowSource,
         args: NewWindowRequestedArgs,
         deferral: Deferral,
     },
@@ -314,7 +319,12 @@ impl Runtime {
             || site_key(source).is_none_or(|site| !exceptions.contains(&(private, site)))
     }
 
-    fn popup_block(&self, target: &url::Url, source: &str, private: bool) -> Option<Connection> {
+    fn popup_block(
+        &self,
+        target: &url::Url,
+        source: &NewWindowSource,
+        private: bool,
+    ) -> Option<Connection> {
         let prefs = self.preferences.get();
         if target.host_str() == Some("brisa.invalid") {
             return Some(Connection::BlockedScheme);
@@ -322,14 +332,22 @@ impl Runtime {
         if !protection::transport_allowed(target, prefs.https_only) {
             return Some(Connection::BlockedHttp);
         }
-        let cross_site = prefs.cross_site_popups
-            || site_key(source)
-                .is_some_and(|site| self.popup_exceptions.borrow().contains(&(private, site)));
-        if !protection::popup_allowed(target, source, true, cross_site, prefs.https_only) {
+        let cross_site = !source.requests_popup
+            || prefs.cross_site_popups
+            || self
+                .popup_exceptions
+                .borrow()
+                .contains(&(private, source.origin.clone()));
+        if !protection::popup_allowed(target, &source.origin, true, cross_site, prefs.https_only) {
             return Some(Connection::BlockedPopup);
         }
-        if self.filter_enabled(source, private)
-            && protection::popup_blocked(&self.engine, &self.popup_engine, target.as_str(), source)
+        if self.filter_enabled(&source.origin, private)
+            && protection::popup_blocked(
+                &self.engine,
+                &self.popup_engine,
+                target.as_str(),
+                &source.origin,
+            )
         {
             return Some(Connection::BlockedRedirect);
         }
@@ -481,7 +499,7 @@ impl Browser {
         &self,
         private: bool,
         center: Option<CenterPage>,
-        popup_source: Option<String>,
+        popup_source: Option<NewWindowSource>,
     ) -> AppResult<Tab> {
         if self.tabs.len() >= MAX_TABS {
             return Err("Feche ou guarde uma aba na estante para abrir outra.".into());
@@ -884,6 +902,15 @@ impl Browser {
             }
             self.layout();
         }
+        if let Some(panel) = self
+            .inspector
+            .as_mut()
+            .filter(|panel| panel.take_viewport_error())
+        {
+            panel.set_viewport(None)?;
+            self.layout();
+            return Err("O motor não conseguiu ativar a visualização responsiva.".into());
+        }
         if let Ok(tab) = self.current() {
             self.toolbar.update_zoom(tab.controller.zoom_factor());
         }
@@ -970,7 +997,13 @@ impl Browser {
             };
             let (page, panel) = self.pane_rects(tab.id, area);
             let _ = tab.resize(page);
-            let panel = self.toolbar.inspector_header(panel, self.dock.command());
+            let mobile = self
+                .inspector
+                .as_ref()
+                .is_some_and(|inspector| inspector.tab == tab.id && inspector.viewport().is_some());
+            let panel = self
+                .toolbar
+                .inspector_header(panel, self.dock.command(), mobile);
             if let Some(inspector) = &self.inspector {
                 let _ = inspector.layout(panel);
             }
@@ -978,16 +1011,16 @@ impl Browser {
     }
 
     fn pane_rects(&self, tab: usize, area: RECT) -> (RECT, Option<RECT>) {
-        if self
-            .inspector
-            .as_ref()
-            .is_some_and(|panel| panel.tab == tab && panel.docked())
-        {
+        let Some(inspector) = self.inspector.as_ref().filter(|panel| panel.tab == tab) else {
+            return (area, None);
+        };
+        let (page, panel) = if inspector.docked() {
             let (page, panel) = self.dock.split(area);
             (page, Some(panel))
         } else {
             (area, None)
-        }
+        };
+        (inspector.layout_page(page), panel)
     }
 
     fn open_inspector(&mut self, dock: bool) -> AppResult<()> {
@@ -1010,6 +1043,92 @@ impl Browser {
                 &tab.web,
                 dock,
             )?);
+        }
+        self.layout();
+        Ok(())
+    }
+
+    fn mobile_preview(&mut self) -> AppResult<()> {
+        use crate::inspector::Viewport;
+        let tab = self.current()?;
+        if tab.center.is_some() {
+            return Ok(());
+        }
+        let id = tab.id;
+        let inspector = self.inspector.as_ref().filter(|panel| panel.tab == id);
+        let current = inspector.and_then(crate::inspector::Panel::viewport);
+        let selected = {
+            const COMPACT: u16 = 1;
+            const PHONE: u16 = 2;
+            const TABLET: u16 = 3;
+            const CUSTOM: u16 = 4;
+            const ROTATE: u16 = 5;
+            const DESKTOP: u16 = 6;
+            let anchor = MenuAnchor::Control(
+                self.toolbar.menu_anchor(
+                    if inspector.is_some_and(crate::inspector::Panel::docked) {
+                        INSPECT_MOBILE
+                    } else {
+                        MENU
+                    },
+                ),
+                false,
+            );
+            let owner = self.runtime.hwnd;
+            let palette = self.toolbar.palette();
+            let mut items = vec![
+                MenuItem::info(current.map_or_else(|| "Modo responsivo".into(), Viewport::label)),
+                MenuItem::action(COMPACT, "Celular compacto").shortcut(Viewport::COMPACT.label()),
+                MenuItem::action(PHONE, "Celular").shortcut(Viewport::PHONE.label()),
+                MenuItem::action(TABLET, "Tablet").shortcut(Viewport::TABLET.label()),
+                MenuItem::action(CUSTOM, "Tamanho personalizado…"),
+            ];
+            if current.is_some() {
+                items.push(MenuItem::action(ROTATE, "Girar tela").section());
+                items.push(MenuItem::action(DESKTOP, "Voltar ao desktop"));
+            }
+            match chrome_menu::pick(owner, anchor, palette, &items)? {
+                COMPACT => Some(Viewport::COMPACT),
+                PHONE => Some(Viewport::PHONE),
+                TABLET => Some(Viewport::TABLET),
+                ROTATE => current.map(Viewport::rotated),
+                DESKTOP => None,
+                CUSTOM => {
+                    let viewport = current.unwrap_or(Viewport::PHONE);
+                    let width = viewport.width.to_string();
+                    let height = viewport.height.to_string();
+                    let Some(values) = chrome_menu::edit(
+                        owner,
+                        anchor,
+                        palette,
+                        "Tamanho responsivo",
+                        &[
+                            ("Largura em pixels", &width, 4),
+                            ("Altura em pixels", &height, 4),
+                        ],
+                    )?
+                    else {
+                        return Ok(());
+                    };
+                    let viewport = match values.as_slice() {
+                        [width, height] => width
+                            .trim()
+                            .parse()
+                            .ok()
+                            .zip(height.trim().parse().ok())
+                            .and_then(|(width, height)| Viewport::custom(width, height)),
+                        _ => None,
+                    };
+                    Some(viewport.ok_or("Informe largura e altura entre 240 e 2560 pixels.")?)
+                }
+                _ => return Ok(()),
+            }
+        };
+        if inspector.is_none() {
+            self.open_inspector(true)?;
+        }
+        if let Some(panel) = &mut self.inspector {
+            panel.set_viewport(selected)?;
         }
         self.layout();
         Ok(())
@@ -1174,6 +1293,7 @@ impl Browser {
                 }
             }
             INSPECT if self.current()?.center.is_none() => self.open_inspector(true)?,
+            INSPECT_MOBILE => self.mobile_preview()?,
             INSPECT_UNDOCK | crate::inspector::DETACHED if self.current()?.center.is_none() => {
                 self.open_inspector(false)?;
             }
@@ -2024,6 +2144,7 @@ impl Browser {
                             .section(),
                         MenuItem::action(TRANSLATE, translation),
                         MenuItem::action(INSPECT, "Inspetor").shortcut("F12"),
+                        MenuItem::action(INSPECT_MOBILE, "Modo responsivo").icon(Icon::Mobile),
                         MenuItem::action(crate::inspector::DETACHED, "DevTools em janela separada"),
                         MenuItem::action(PARK, "Guardar aba na estante").section(),
                         MenuItem::action(SHELF, "Abrir estante"),
@@ -2703,7 +2824,7 @@ fn prepare_tab(
     runtime: Rc<Runtime>,
     id: usize,
     private: bool,
-    popup_source: Option<String>,
+    popup_source: Option<NewWindowSource>,
 ) -> AppResult<Tab> {
     controller.set_allow_external_drop(false)?;
     let web = controller.webview()?;
@@ -2752,7 +2873,7 @@ fn prepare_tab(
                     &state.committed_address
                 };
                 let reason = match &allowed {
-                    Some(url) if let Some(source) = state.popup_source.as_deref() => {
+                    Some(url) if let Some(source) = state.popup_source.as_ref() => {
                         runtime.popup_block(url, source, private)
                     }
                     Some(url)
@@ -2921,10 +3042,14 @@ fn prepare_tab(
                 let user_initiated = args.is_user_initiated();
                 let source = user_initiated
                     .then(|| site_key(&state.committed_address))
-                    .flatten();
+                    .flatten()
+                    .map(|origin| NewWindowSource {
+                        origin,
+                        requests_popup: args.requests_popup(),
+                    });
                 let reason = target
                     .as_ref()
-                    .zip(source.as_deref())
+                    .zip(source.as_ref())
                     .and_then(|(target, source)| runtime.popup_block(target, source, private));
                 if let Some(source) = source
                     && (uri == "about:blank" || target.is_some() && reason.is_none())
@@ -3561,7 +3686,9 @@ mod tests {
                 cross_site_popups: false,
                 ..Preferences::default()
             }),
-            engine: protection::engine(Some("||generic-ad.example^")),
+            engine: protection::engine(Some(
+                "||generic-ad.example^$document\n||newsletter.example^$other",
+            )),
             popup_engine: protection::popup_engine(Some(
                 "||ads.example^$popup\n@@||ads.example/session$popup".into(),
             )),
@@ -3570,18 +3697,31 @@ mod tests {
             pending: RefCell::default(),
             download_confirmation: Cell::new(false),
         };
-        let source = "https://example.org";
+        let source = &NewWindowSource {
+            origin: "https://example.org".into(),
+            requests_popup: true,
+        };
+        let unknown_popup = &NewWindowSource {
+            origin: "https://other.example.org".into(),
+            requests_popup: true,
+        };
+        let tab_open = &NewWindowSource {
+            origin: source.origin.clone(),
+            requests_popup: false,
+        };
         let login = protection::web_url("https://login.example/session").unwrap();
         let ad = protection::web_url("https://ads.example/banner").unwrap();
         let allowed_ad_origin = protection::web_url("https://ads.example/session").unwrap();
         let generic_ad = protection::web_url("https://generic-ad.example/banner").unwrap();
+        let newsletter = protection::web_url("https://newsletter.example/click").unwrap();
         let insecure = protection::web_url("http://login.example/session").unwrap();
         assert!(runtime.popup_block(&login, source, false).is_none());
         assert!(runtime.popup_block(&login, source, true) == Some(Connection::BlockedPopup));
         assert!(
-            runtime.popup_block(&login, "https://other.example.org", false)
-                == Some(Connection::BlockedPopup)
+            runtime.popup_block(&login, unknown_popup, false) == Some(Connection::BlockedPopup)
         );
+        assert!(runtime.popup_block(&login, tab_open, true).is_none());
+        assert!(runtime.popup_block(&ad, tab_open, true) == Some(Connection::BlockedRedirect));
         assert!(runtime.popup_block(&ad, source, false) == Some(Connection::BlockedRedirect));
         assert!(
             runtime
@@ -3591,10 +3731,17 @@ mod tests {
         assert!(
             runtime.popup_block(&generic_ad, source, false) == Some(Connection::BlockedRedirect)
         );
+        assert!(protection::request_blocked(
+            &runtime.engine,
+            newsletter.as_str(),
+            &source.origin,
+            "other"
+        ));
+        assert!(runtime.popup_block(&newsletter, source, false).is_none());
         assert!(!protection::request_blocked(
             &runtime.engine,
             ad.as_str(),
-            source,
+            &source.origin,
             "document"
         ));
         assert!(runtime.popup_block(&insecure, source, false) == Some(Connection::BlockedHttp));

@@ -355,7 +355,7 @@ function showSettings() {
     ["Proteção e privacidade", [
       ["https_only", "Exigir HTTPS", "Usa conexão criptografada fora deste computador."],
       ["filter_network", "Bloquear anúncios e rastreadores", "Aplica EasyList e EasyPrivacy às requisições."],
-      ["cross_site_popups", "Permitir pop-ups externos por clique", "Mantém aberturas automáticas bloqueadas. Com a opção desativada, use o escudo para permitir pop-ups externos de um site durante a sessão."],
+      ["cross_site_popups", "Permitir pop-ups externos por clique", "Links para uma aba comum continuam abrindo. Com a opção desativada, use o escudo para autorizar os pop-ups solicitados por um site durante a sessão."],
     ]],
     ["Navegação", [
       ["show_bookmarks", "Mostrar barra de marcadores", "Acesso direto abaixo do endereço."],

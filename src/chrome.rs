@@ -73,7 +73,9 @@ pub const INSPECT_RIGHT: u16 = 140;
 pub const INSPECT_UNDOCK: u16 = 141;
 pub const INSPECT_CLOSE: u16 = 142;
 pub const DOWNLOADS: u16 = 143;
-const INSPECT_BUTTONS: [(&str, u16); 5] = [
+pub const INSPECT_MOBILE: u16 = 144;
+const INSPECT_BUTTONS: [(&str, u16); 6] = [
+    ("Modo responsivo", INSPECT_MOBILE),
     ("Encaixar DevTools à esquerda", INSPECT_LEFT),
     ("Encaixar DevTools embaixo", INSPECT_BOTTOM),
     ("Encaixar DevTools à direita", INSPECT_RIGHT),
@@ -208,8 +210,9 @@ pub struct Toolbar {
     mark: HWND,
     pub zoom: HWND,
     zoom_percent: Cell<u16>,
-    inspect_controls: [HWND; 5],
+    inspect_controls: [HWND; INSPECT_BUTTONS.len()],
     inspect_area: Cell<Option<(i32, i32, i32, u16)>>,
+    mobile_preview: Cell<bool>,
     bookmarks: HWND,
     pins: [HWND; 3],
     bookmark_glyphs: [RefCell<BookmarkGlyph>; 3],
@@ -306,8 +309,10 @@ impl Toolbar {
                 button(INSPECT_BUTTONS[2].0, INSPECT_BUTTONS[2].1)?,
                 button(INSPECT_BUTTONS[3].0, INSPECT_BUTTONS[3].1)?,
                 button(INSPECT_BUTTONS[4].0, INSPECT_BUTTONS[4].1)?,
+                button(INSPECT_BUTTONS[5].0, INSPECT_BUTTONS[5].1)?,
             ],
             inspect_area: Cell::new(None),
+            mobile_preview: Cell::new(false),
             bookmarks: button("Marcadores", BOOKMARKS)?,
             pins: [
                 button("", PIN_FIRST)?,
@@ -663,10 +668,11 @@ impl Toolbar {
         }
     }
 
-    pub fn inspector_header(&self, area: Option<RECT>, side: u16) -> Option<RECT> {
+    pub fn inspector_header(&self, area: Option<RECT>, side: u16, mobile: bool) -> Option<RECT> {
         let bounds = area.map(|area| (area.right, area.left, area.top, side));
         let height = scale(32, self.dpi);
         let extent = scale(30, self.dpi);
+        let mobile_changed = self.mobile_preview.replace(mobile) != mobile;
         if bounds != self.inspect_area.get() {
             let controls = self
                 .inspect_controls
@@ -676,7 +682,9 @@ impl Toolbar {
                     hwnd,
                     bounds: area.map(|area| {
                         (
-                            area.right - scale(5, self.dpi) - extent * (5 - index as i32),
+                            area.right
+                                - scale(5, self.dpi)
+                                - extent * (self.inspect_controls.len() - index) as i32,
                             area.top + scale(2, self.dpi),
                             extent,
                             height - scale(4, self.dpi),
@@ -690,6 +698,9 @@ impl Toolbar {
                     repaint(control);
                 }
             }
+        }
+        if mobile_changed {
+            repaint(self.inspect_controls[0]);
         }
         area.map(|area| RECT {
             top: (area.top + height).min(area.bottom),
@@ -938,6 +949,7 @@ impl Toolbar {
             INSPECT_RIGHT => Some(Icon::DockRight),
             INSPECT_UNDOCK => Some(Icon::Undock),
             INSPECT_CLOSE => Some(Icon::Close),
+            INSPECT_MOBILE => Some(Icon::Mobile),
             _ => None,
         };
         let dark = matches!(
@@ -1048,7 +1060,8 @@ impl Toolbar {
                 .inspect_area
                 .get()
                 .is_some_and(|(_, _, _, side)| id == side);
-            if hot || dock_selected {
+            let mobile_selected = id == INSPECT_MOBILE && self.mobile_preview.get();
+            if hot || dock_selected || mobile_selected {
                 canvas.rounded(
                     inset(rect, s(2)),
                     s(9) as f32,
@@ -1473,6 +1486,7 @@ impl Toolbar {
             BOOKMARKS => self.bookmarks,
             PROTECTION => self.protection,
             DOWNLOADS => self.downloads,
+            INSPECT_MOBILE => self.inspect_controls[0],
             TAB_LIST => self.tab_list,
             _ => self.menu,
         }
